@@ -122,10 +122,10 @@ void load_map(struct lys_context *ctx){
   map_num = ((map_num+1) > 29) ? 1 : map_num+1;
   char* colormap_path[100];
   char* heightmap_path[100];
-  sprintf(colormap_path, "../converted-maps/C%dW.png", map_num);
-  sprintf(heightmap_path, "../converted-maps/D%d.png", map_num);
-  //sprintf(colormap_path, "../custom-maps/ocean.png");
-  //sprintf(heightmap_path, "../custom-maps/flat_height.png");
+  sprintf(colormap_path, "data/converted-maps/C%dW.png", map_num);
+  sprintf(heightmap_path, "data/converted-maps/D%d.png", map_num);
+  //sprintf(colormap_path, "data/custom-maps/ocean.png");
+  //sprintf(heightmap_path, "data/custom-maps/flat_height.png");
   printf("%s\n%s\n", colormap_path, heightmap_path);
   int width, height;
 
@@ -210,7 +210,7 @@ int32_t* run_interactive(struct futhark_context *futctx,
   struct internal internal;
   ctx.event_handler_data = (void*) &internal;
   internal.show_text = show_text_initial;
-  internal.font = TTF_OpenFont("NeomatrixCode.ttf", FONT_SIZE);
+  internal.font = TTF_OpenFont("c/NeomatrixCode.ttf", FONT_SIZE);
   SDL_ASSERT(internal.font != NULL);
 
   lys_run_sdl(&ctx);
