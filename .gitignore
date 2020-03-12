@@ -1,6 +1,5 @@
 # Futspace files
 success.png
-lysspace 
-liblysspace.o 
-liblysspace.c 
-liblysspace.h
+futspace
+*.o
+lib/
