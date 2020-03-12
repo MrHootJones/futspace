@@ -18,8 +18,8 @@ type landscape [h][w] = { width : i32,
 --The data encapsulated is simply the startpoint of the given horizontal line and the size of its segments. we do not need any more for our purposes
 type line = { start_x : f32, 
               start_y : f32, 
-              segment_width : f32, 
-              segment_height : f32 } 
+              end_x : f32, 
+              end_y : f32 } 
 
 --calculates an arithmetic series of values that represent depth-layers in the rendering algorithm.
 let get_zs (c : f32) (d: f32) (z_0 : f32) : []f32 =
@@ -52,8 +52,8 @@ let get_h_line (z : f32) (c : camera) (w : i32) : line =
 
 --calculates a segment of the line calculated in get_h_line at pixel i in the range 0..w
 let get_segment (l : line) (i : i32) : (i32, i32) =
-    let left_x_int = i32.f32 (l.start_x + (f32.i32 i) * l.segment_width)
-    let left_y_int = i32.f32 (l.start_y + (f32.i32 i) * l.segment_height)
+    let left_x_int = i32.f32 (l.start_x + (f32.i32 i) * l.end_x)
+    let left_y_int = i32.f32 (l.start_y + (f32.i32 i) * l.end_y)
     in (left_x_int, left_y_int)
 
 --scan operator used to sort through depth-slices in order to determine voxel-column colors and heights.

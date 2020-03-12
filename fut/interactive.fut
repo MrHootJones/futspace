@@ -1,7 +1,7 @@
 import "../lib/github.com/diku-dk/lys/lys"
-import "futspace"
-import "map_ops"
-module input_handler = import "inputs"
+import "voxel_renderer"
+import "effects"
+module input_handler = import "interactive_input"
 
 type sized_state [h][w] =   
     {   
@@ -57,7 +57,7 @@ let process_inputs (s: state) : state =
             else s.cam.x)
         with cam.y = 
             (if s.inputs.w == 1 then (s.cam.y - 2*(f32.cos s.cam.angle)) 
-            else if s.inputs.s == 1 then (s.cam.y + nd_y2*(f32.cos s.cam.angle)) 
+            else if s.inputs.s == 1 then (s.cam.y + 2*(f32.cos s.cam.angle)) 
             else s.cam.y)
         with cam.angle =
             (if s.inputs.d == 1 then s.cam.angle - 0.03
@@ -110,5 +110,3 @@ let text_content (s: state) =
 let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.colour) (s: state) : state =
     s  with lsc.color = color_map
         with lsc.altitude = height_map
-
-e

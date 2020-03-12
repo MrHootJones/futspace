@@ -1,5 +1,5 @@
 import "../lib/github.com/diku-dk/lys/lys"
-module core = import "lysspace"
+module core = import "interactive"
 
 type^ state = core.state
 
