@@ -1,3 +1,6 @@
+-- Defines a record type and accomodating functions that are used to check if a key is pressed or let go of between steps in order to
+-- facilitate multiple key presses at once
+
 import "../lib/github.com/diku-dk/lys/lys"
 
 type input_states =
