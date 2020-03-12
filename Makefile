@@ -15,7 +15,7 @@ FUT_SOURCE=fut/interactive_entrypoints.fut
 CFLAGS_FUTSPACE=
 LDFLAGS_FUTSPACE=-lfreeimage
 include lib/github.com/diku-dk/lys/setup_flags.mk
-lysspace: libfutspace.o lib/github.com/diku-dk/lys/liblys.c lib/github.com/diku-dk/lys/liblys.h lib/github.com/diku-dk/lys/context_setup.c lib/github.com/diku-dk/lys/context_setup.h c/interactive.c
+futspace: libfutspace.o lib/github.com/diku-dk/lys/liblys.c lib/github.com/diku-dk/lys/liblys.h lib/github.com/diku-dk/lys/context_setup.c lib/github.com/diku-dk/lys/context_setup.h c/interactive.c
 	gcc lib/github.com/diku-dk/lys/liblys.c lib/github.com/diku-dk/lys/context_setup.c c/interactive.c -I. -DPROGHEADER='"libfutspace.h"' libfutspace.o -o $@ $(CFLAGS) $(LDFLAGS) $(LDFLAGS_FUTSPACE) $(CFLAGS_FUTSPACE)
 endif
 libfutspace.o: libfutspace.c
