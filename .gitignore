@@ -1,5 +1,7 @@
 # Futspace files
 success.png
 futspace
+*.c
+*.h
 *.o
 lib/
