@@ -27,6 +27,11 @@ let modulate [h][w] (num: f32) (height_map: [h][w]i32) =
             ) heights (iota w)
                 ) height_map
 
---let add_shadow ()
---let sunlight [h][w] (sun_height: i32) (color_map: [h][w]i32) (height_map: [h][w]i32) : [h][w]i32 =
---    map2 (\color_row height_row -> scan  ) color_map height_map
+--idea: implement heightmap axis-aligned shadows by scanning across the height and color maps and adjusting the colors of the colormap based on whether the height of the previous voxel
+--      intersects with a vector representing the sun
+
+
+let sunlight [h][w] (sun_height: i32) (color_map: [h][w]i32) (height_map: [h][w]i32) : [h][w]i32 =
+    let height_map = height_map
+    let color_map = color_map
+    in map3 (\color_row height_row prev_height_row-> map3 (\color height prev_height -> if prev_height > height then (argb.mix 0.9 argb.black 1.0 color) else color) color_row height_row prev_height_row) color_map height_map (map (\row -> rotate (-1) row) height_map)
