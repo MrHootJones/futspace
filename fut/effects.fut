@@ -26,3 +26,7 @@ let modulate [h][w] (num: f32) (height_map: [h][w]i32) =
             height + i32.f32 ((f32.sin (num * 0.01 + (f32.i32 j) * 0.2 )) * 0.03 * f32.i32 height)
             ) heights (iota w)
                 ) height_map
+
+--let add_shadow ()
+--let sunlight [h][w] (sun_height: i32) (color_map: [h][w]i32) (height_map: [h][w]i32) : [h][w]i32 =
+--    map2 (\color_row height_row -> scan  ) color_map height_map

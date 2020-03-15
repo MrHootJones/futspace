@@ -10,8 +10,8 @@
 #define MAX_FPS 60
 #define FONT_SIZE 20
 
-#define DISPLAY_WIDTH 1024
-#define DISPLAY_HEIGHT 1024
+#define DISPLAY_WIDTH 512
+#define DISPLAY_HEIGHT 512
 
 
 static unsigned int wrap_fread(void *buffer, unsigned size, unsigned count, fi_handle handle) {
@@ -187,7 +187,7 @@ int32_t* run_interactive(struct futhark_context *futctx,
                          int width, int height, int seed,
                          bool show_text_initial) {
   struct lys_context ctx;
-  lys_setup(&ctx, width, height, MAX_FPS, 0);
+  lys_setup(&ctx, width, height, MAX_FPS, SDL_WINDOW_RESIZABLE);
   ctx.fut = futctx;
 
   ctx.event_handler_data = NULL;
