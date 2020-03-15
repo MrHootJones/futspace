@@ -5,9 +5,7 @@ type camera = { x : f32,
                 angle : f32, 
                 horizon : f32, 
                 distance : f32,
-                magic_number : f32,
-                invz_param1 : f32,
-                invz_param2 : f32 }
+                fov : f32}
 
 type landscape [h][w] = { width : i32,
                        height : i32,
@@ -35,10 +33,11 @@ let get_zs (c : f32) (d: f32) (z_0 : f32) : []f32 =
 let get_h_line (z : f32) (c : camera) (w : i32) : line =
     let sin_ang = f32.sin c.angle
     let cos_ang = f32.cos c.angle
-    let left_x = - cos_ang * z - sin_ang * z
-    let left_y = sin_ang * z - cos_ang * z
-    let right_x = cos_ang * z - sin_ang * z
-    let right_y = - sin_ang * z - cos_ang * z
+    let view = c.fov
+    let left_x = (- cos_ang  - sin_ang * view )*z
+    let left_y = (sin_ang  - cos_ang * view)*z
+    let right_x = (cos_ang  - sin_ang * view)*z
+    let right_y = (- sin_ang  - cos_ang * view)*z
     
     let dx = (right_x - left_x) / (f32.i32 w)
     let dy = (right_y - left_y) / (f32.i32 w)
@@ -58,7 +57,7 @@ let get_segment (l : line) (i : i32) : (i32, i32) =
 
 --scan operator used to sort through depth-slices in order to determine voxel-column colors and heights.
 let occlude (color1 : i32, height1 : i32 ) (color2 : i32, height2 : i32 ) : (i32, i32) =
-    if (height1 >= height2)
+    if (height1 <= height2)
     then (color1, height1)
     else (color2, height2)
 
@@ -87,16 +86,16 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
     
     --Work = O(depth*width)
     --Span = O(1)
-
     let height_color_map = map (\z -> 
                                  let h_line = get_h_line z c w
-                                 let inv_z = c.invz_param1 / (z * c.invz_param2)
+                                 let inv_z = (1.0 / z) * 240.0
                                  in map (\i -> 
                                           let (x, y) = get_segment h_line i
-                                          let map_height = (0xFFFFFF - lsc.altitude[y%r,x%s])
-                                          let height_diff = c.magic_number*c.height -  f32.i32 map_height 
-                                          let relative_height = (height_diff * inv_z + c.horizon)
-                                          in (lsc.color[y%r,x%s], (i32.f32 relative_height))
+                                          let map_height = lsc.altitude[y%r,x%s] & 0xFF
+                                          let height_diff = c.height - (f32.i32 map_height)
+                                          let relative_height = height_diff * inv_z + c.horizon
+                                          let abs_height = i32.max 0 (i32.f32 relative_height)
+                                          in (lsc.color[y%r,x%s], abs_height)
                                         ) (iota w)
                                 ) zs
 
@@ -106,17 +105,16 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
     -- Span = O(lg(depth) + lg(height))
     let rendered_image = map (\i -> 
                                -- Iterates over depth-slice at width i and calculates array of (height, color) tuples.
-                               let (colors, heights) = unzip (scan (occlude) (0, 0) i)
+                               let (colors, heights) = unzip (scan (occlude) (0, h) i)
                                -- Projects a column of height and color tuples to an h-length array.
                                let v_line_incomplete = scatter (replicate h 0) heights colors
                                -- fill color gaps in v_line_incomplete. 
-                               let v_line_filled_no_sky = scan (fill_vline) 0 (reverse v_line_incomplete)
+                               let v_line_filled_no_sky = scan (fill_vline) 0 (v_line_incomplete)
                                --Fill sky with sky color, as this is not covered by the previous operation.
                                in map (\col -> if (col == 0) then lsc.sky_color else col) v_line_filled_no_sky
                             ) (transpose height_color_map)
-
-    
     --finally tranpose rendered image from w*h to h*w
 
+    --Work = O(width * height)
     --Span = O(1)
-    in (transpose rendered_image)
+    in transpose rendered_image
