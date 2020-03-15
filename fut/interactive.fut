@@ -48,6 +48,14 @@ let grab_mouse = false
 let mouse _ _ _ s = s
 let wheel _ _ s = s
 
+let terrain_collision [r][s] (c: camera) (lsc: landscape[r][s]) : f32 =
+    let x = i32.f32 c.x
+    let y = i32.f32 c.y
+    let terrain_height = f32.i32 (lsc.altitude[y%r,x%s] & 0xFF)
+    in
+    if c.height < terrain_height then terrain_height
+    else c.height
+
 let process_inputs (s: state) : state =
     s   with cam.x = 
             (if s.inputs.w == 1 then (s.cam.x - 3*(f32.sin s.cam.angle)) 
@@ -67,8 +75,8 @@ let process_inputs (s: state) : state =
             else s.cam.horizon)
         with cam.height =
             (if s.inputs.r == 1 then s.cam.height + 10
-            else if s.inputs.f == 1 then s.cam.height - 10
-            else s.cam.height)
+            else if s.inputs.f == 1 then terrain_collision (s.cam with height = s.cam.height - 10) s.lsc
+            else terrain_collision s.cam s.lsc)
         with cam.distance =
             (if s.inputs.arrowup == 1 then s.cam.distance + 100
             else if s.inputs.arrowdown == 1 && s.cam.distance > 100 then s.cam.distance - 100
