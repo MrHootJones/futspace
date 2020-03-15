@@ -1,7 +1,7 @@
 .PHONY: all clean
 
 LYS_TTF=1
-
+LYS_BACKEND=opencl
 PROG_FUT_DEPS:=$(shell find fut -name \*.fut; find lib -name \*.fut)
 
 all: futspace
