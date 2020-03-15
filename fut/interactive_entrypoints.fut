@@ -19,8 +19,8 @@ entry wheel (dx: i32) (dy: i32) (s: state): state =
 entry render (s: state) =
   core.render s
 
-entry init [h][w] (seed: u32) (color_map: [h][w]argb.colour) (height_map: [h][w]argb.colour): state =
-  core.init seed color_map height_map
+entry init (seed: u32): state =
+  core.init seed
 
 entry text_content (s: state) =
     core.text_content s

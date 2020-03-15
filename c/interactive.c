@@ -193,15 +193,7 @@ int32_t* run_interactive(struct futhark_context *futctx,
   ctx.event_handler_data = NULL;
   ctx.event_handler = handle_event;
 
-  int dummy_size = 4; //Just picked an arbitrary small number to make calloc less resource intensive.
-  int32_t* dummy_data = calloc(dummy_size, sizeof(int32_t));
-  struct futhark_i32_2d *dummy_colormap = futhark_new_i32_2d(futctx, dummy_data, dummy_size/2, dummy_size/2);
-  struct futhark_i32_2d *dummy_heightmap = futhark_new_i32_2d(futctx, dummy_data, dummy_size/2, dummy_size/2);
-  free(dummy_data);
-
-  futhark_entry_init(ctx.fut, &ctx.state, seed, dummy_colormap, dummy_heightmap); // call init with dummy maps as we can use load_map to handle the actual map loading instead
-  futhark_free_i32_2d(ctx.fut, dummy_colormap);
-  futhark_free_i32_2d(ctx.fut, dummy_heightmap);
+  futhark_entry_init(ctx.fut, &ctx.state, seed);
 
   load_map(&ctx);
 
