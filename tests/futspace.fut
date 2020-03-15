@@ -55,7 +55,7 @@ let get_segment (l : line) (i : i32) : (i32, i32) =
 
 --scan operator used to sort through depth-slices in order to determine voxel-column colors and heights.
 let binop (color1 : i32, height1 : i32 ) (color2 : i32, height2 : i32 ) : (i32, i32) =
-    if (height1 >= height2)
+    if (height1 <= height2)
     then (color1, height1)
     else (color2, height2)
 
@@ -85,13 +85,14 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
     --Span = O(1)
     let height_color_map = map (\z -> 
                                  let h_line = get_h_line z c w
-                                 let inv_z = 1.0 / (z * 240.0)
+                                 let inv_z = (1.0 / z) * 240.0
                                  in map (\i -> 
                                           let (x, y) = get_segment h_line i
-                                          let map_height = lsc.altitude[y%1024,x%1024] << 16
+                                          let map_height = lsc.altitude[y%1024,x%1024]
                                           let height_diff = c.height - (f32.i32 map_height)
                                           let relative_height = height_diff * inv_z + c.horizon
-                                          in (lsc.color[y%1024,x%1024], (i32.f32 relative_height))
+                                          let abs_height = i32.max 0 (i32.f32 relative_height)
+                                          in (lsc.color[y%1024,x%1024], abs_height)
                                         ) (iota w)
                                 ) zs
 
@@ -101,11 +102,11 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
     -- Span = O(lg(depth) + lg(height))
     let rendered_image = map (\i -> 
                                -- Iterates over depth-slice at width i and calculates array of (height, color) tuples.
-                               let (colors, heights) = unzip (scan (binop) (0, 0) i)
+                               let (colors, heights) = unzip (scan (binop) (0, h) i)
                                -- Projects a column of height and color tuples to an h-length array.
                                let v_line_incomplete = scatter (replicate h 0) heights colors
                                -- fill color gaps in v_line_incomplete. 
-                               let v_line_filled_no_sky = scan (fill_vline) 0 (reverse v_line_incomplete)
+                               let v_line_filled_no_sky = scan (fill_vline) 0 (v_line_incomplete)
                                --Fill sky with sky color, as this is not covered by the previous operation.
                                in map (\col -> if (col == 0) then lsc.sky_color else col) v_line_filled_no_sky
                             ) (transpose height_color_map)
