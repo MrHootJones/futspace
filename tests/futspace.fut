@@ -3,7 +3,8 @@ type camera = { x : f32,
                 height : f32, 
                 angle : f32, 
                 horizon : f32, 
-                distance : f32 }
+                distance : f32,
+                fov : f32 }
 
 type landscape [h][w] = { width : i32,
                        height : i32,
@@ -14,8 +15,8 @@ type landscape [h][w] = { width : i32,
 --The data encapsulated is simply the startpoint of the given horizontal line and the size of its segments. we do not need any more for our purposes
 type line = { start_x : f32, 
               start_y : f32, 
-              segment_width : f32, 
-              segment_height : f32 } 
+              end_x : f32, 
+              end_y : f32 } 
 
 --calculates an arithmetic series of values that represent depth-layers in the rendering algorithm.
 let get_zs (c : f32) (d: f32) (z_0 : f32) : []f32 =
@@ -31,10 +32,11 @@ let get_zs (c : f32) (d: f32) (z_0 : f32) : []f32 =
 let get_h_line (z : f32) (c : camera) (w : i32) : line =
     let sin_ang = f32.sin c.angle
     let cos_ang = f32.cos c.angle
-    let left_x = - cos_ang * z - sin_ang * z
-    let left_y = sin_ang * z - cos_ang * z
-    let right_x = cos_ang * z - sin_ang * z
-    let right_y = - sin_ang * z - cos_ang * z
+    let view = c.fov
+    let left_x = (- cos_ang  - sin_ang * view )*z
+    let left_y = (sin_ang  - cos_ang * view)*z
+    let right_x = (cos_ang  - sin_ang * view)*z
+    let right_y = (- sin_ang  - cos_ang * view)*z
     
     let dx = (right_x - left_x) / (f32.i32 w)
     let dy = (right_y - left_y) / (f32.i32 w)
@@ -44,17 +46,17 @@ let get_h_line (z : f32) (c : camera) (w : i32) : line =
 
     in { start_x = left_x, 
          start_y = left_y, 
-         segment_width = dx, 
-         segment_height = dy }
+         end_x = dx, 
+         end_y = dy }
 
 --calculates a segment of the line calculated in get_h_line at pixel i in the range 0..w
 let get_segment (l : line) (i : i32) : (i32, i32) =
-    let left_x_int = i32.f32 (l.start_x + (f32.i32 i) * l.segment_width)
-    let left_y_int = i32.f32 (l.start_y + (f32.i32 i) * l.segment_height)
+    let left_x_int = i32.f32 (l.start_x + (f32.i32 i) * l.end_x)
+    let left_y_int = i32.f32 (l.start_y + (f32.i32 i) * l.end_y)
     in (left_x_int, left_y_int)
 
 --scan operator used to sort through depth-slices in order to determine voxel-column colors and heights.
-let binop (color1 : i32, height1 : i32 ) (color2 : i32, height2 : i32 ) : (i32, i32) =
+let occlude (color1 : i32, height1 : i32 ) (color2 : i32, height2 : i32 ) : (i32, i32) =
     if (height1 <= height2)
     then (color1, height1)
     else (color2, height2)
@@ -88,11 +90,11 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
                                  let inv_z = (1.0 / z) * 240.0
                                  in map (\i -> 
                                           let (x, y) = get_segment h_line i
-                                          let map_height = lsc.altitude[y%1024,x%1024]
+                                          let map_height = lsc.altitude[y%r,x%s]
                                           let height_diff = c.height - (f32.i32 map_height)
                                           let relative_height = height_diff * inv_z + c.horizon
                                           let abs_height = i32.max 0 (i32.f32 relative_height)
-                                          in (lsc.color[y%1024,x%1024], abs_height)
+                                          in (lsc.color[y%r,x%s], abs_height)
                                         ) (iota w)
                                 ) zs
 
@@ -102,7 +104,7 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
     -- Span = O(lg(depth) + lg(height))
     let rendered_image = map (\i -> 
                                -- Iterates over depth-slice at width i and calculates array of (height, color) tuples.
-                               let (colors, heights) = unzip (scan (binop) (0, h) i)
+                               let (colors, heights) = unzip (scan (occlude) (0, h) i)
                                -- Projects a column of height and color tuples to an h-length array.
                                let v_line_incomplete = scatter (replicate h 0) heights colors
                                -- fill color gaps in v_line_incomplete. 
@@ -122,7 +124,8 @@ let main [h][w] (color_map : [h][w]i32 ) (height_map: [h][w]i32) : [][]i32 =
                         height = 78f32, --camera height above ground.. does not work as intended due to PNG readouts resulting in huge values (line 83).
                         angle = 0f32, --angle of the camera around the y-axis.
                         horizon = 100f32, --emulates camera rotation around the x-axis.
-                        distance = 800f32 } --max render distance.
+                        distance = 800f32, --max render distance.
+                        fov = 1f32 } 
 
     let init_landscape = {  width = w,
                             height = h,
