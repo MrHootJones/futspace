@@ -17,7 +17,7 @@ type~ state = sized_state [][]
 
 let shape [n][m] 't (_: [n][m]t) = (n,m)
 
-let init [h][w] (seed: u32) (color_map: [h][w]argb.colour) (height_map: [h][w]argb.colour): state =
+let init (seed: u32): state =
     let init_camera = { x = 512f32,
                         y = 800f32,
                         height = 78f32, --camera height above ground.. does not work as intended due to PNG readouts resulting in huge values (line 83).
@@ -26,10 +26,10 @@ let init [h][w] (seed: u32) (color_map: [h][w]argb.colour) (height_map: [h][w]ar
                         distance = 800f32, --max render distance.
                         fov = 0.5}
 
-    let init_landscape = {  width = w,
-                            height = h,
-                            altitude = height_map,
-                            color =  color_map,
+    let init_landscape = {  width = 0, --dummy values, as map loading actually happens when the update_map entrypoint is called from interactive.c
+                            height = 0,
+                            altitude = [[0],[0]],
+                            color =  [[0],[0]],
                             sky_color = 0xFF9090e0}
     in
     {   cam = init_camera,
@@ -95,7 +95,9 @@ let event (e: event) (s: state) =
 let render (s: state) =
     let (h,w) = shape s.lsc.color
     let s_prime = s :> sized_state [h][w]
-    let img = render s_prime.cam s_prime.lsc s_prime.height s_prime.width
+    let color_map = --s_prime.lsc.color
+                    sunlight 1 s_prime.lsc.color s_prime.lsc.altitude
+    let img = render s_prime.cam (s_prime.lsc with color = color_map) s_prime.height s_prime.width
     in img
 
 let text_content (s: state) =
@@ -104,3 +106,5 @@ let text_content (s: state) =
 let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.colour) (s: state) : state =
     s  with lsc.color = color_map
         with lsc.altitude = height_map
+        with lsc.height = h
+        with lsc.width = w
