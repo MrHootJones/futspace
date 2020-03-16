@@ -157,12 +157,12 @@ void load_map(struct lys_context *ctx){
 void loop_iteration(struct lys_context *ctx, struct internal *internal) {
   if(internal->show_text){
     float fps = ctx->fps;
-    float x, y, angle, height, horizon, distance;
-    FUT_CHECK(ctx->fut, futhark_entry_text_content(ctx->fut, &x, &y, &angle, &height, &horizon, &distance, ctx->state));
+    float x, y, angle, height, horizon, distance, sun_height, sun_descent;
+    FUT_CHECK(ctx->fut, futhark_entry_text_content(ctx->fut, &x, &y, &angle, &height, &horizon, &distance, &sun_height, &sun_descent, ctx->state));
     char *text = malloc(300);
     sprintf(text, 
-    "FPS: %f\nX: %f\nY: %f\nAngle: %f\nHeight: %f\nHorizon: %f\nRendering distance: %f\n",
-    fps, x, y, angle, height, horizon, distance);
+    "FPS: %f\nX: %f\nY: %f\nAngle: %f\nHeight: %f\nHorizon: %f\nRendering distance: %f\nsun_height: %f\nsun_descent:%f",
+    fps, x, y, angle, height, horizon, distance, sun_height, sun_descent);
     draw_text(ctx, internal->font, FONT_SIZE, text, 0xff00ffff, 10, 10);
   }
 }
