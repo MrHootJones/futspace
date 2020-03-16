@@ -65,7 +65,7 @@ let occlude (color1 : i32, height1 : i32 ) (color2 : i32, height2 : i32 ) : (i32
 let fill_vline (color1 : i32) (color2 : i32) : i32 =
     if (color2 == 0)
     then color1
-    else color2 
+    else color2
     
 --Work = O(width * height)
 -- [r] is size annotation denoting height of color and altitude in landscape record. [s] likewise denotes the width of these. 
@@ -73,7 +73,7 @@ let fill_vline (color1 : i32) (color2 : i32) : i32 =
 let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][w]i32 =
     unsafe
     let z_0 = 1.0
-    let d = 0.001
+    let d = 0.005
 
     --Work = O(depth)
     --Span = O(1)

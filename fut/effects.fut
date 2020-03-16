@@ -27,22 +27,42 @@ let modulate [h][w] (num: f32) (height_map: [h][w]i32) =
             ) heights (iota w)
                 ) height_map
 
+let does_occlude (height1: f32, distance1: f32, sun_dy1: f32, occludes1: bool) (height2: f32, distance2: f32, sun_dy2: f32, occludes2: bool) : (f32, f32, f32, bool) =
+    if distance1 * sun_dy1 < height1 then
+        (height2, distance2, sun_dy1, occludes1 || occludes2 || true)
+    else
+        (height2, distance2, sun_dy1, occludes1 || occludes2 || false)
+
+let shadowmap_reduce [h][w] (height_map: [h][w]i32) (color_map: [h][w]i32) (sun_dy: f32) : [h][w]i32=
+    map3 (\height_row color_row y -> 
+            map3 (\height color x -> 
+                    let elements_before = height_row[0:x:1]
+                    let tuples = map2 (\elem idx -> (f32.i32 elem, f32.i32 (x-idx), sun_dy, false)) elements_before (0..<x)
+                    let (_,_,_,occludes) = reduce (does_occlude) (0.0, -1.0, sun_dy, false) tuples
+                    in
+                    if occludes == true then
+                        (argb.mix 1.0 argb.black 1.0 color)
+                    else
+                        color
+                    ) height_row color_row (0..<w)
+            ) height_map color_map (0..<h)
+
+
 --heightmap axis-aligned shadows by scanning across the height and color maps and adjusting the colors of the colormap based on whether the height of the previous voxel
 --intersects with a vector representing the sun
 let shade (color1: i32, height1: f32, sun_descent1: f32) (color2: i32, height2: f32, sun_descent2: f32) : (i32, f32, f32)=
-    if height1 > height2 && sun_descent1 < 2.1 then
+    if height1 > height2 then
         --((argb.from_rgba 0.0 0.0 0.0 (f32.max 0 (f32.min 1 (f32.abs (height1 - height2))))), height1 - sun_descent1, sun_descent1)
         ((argb.mix (1.5 * (f32.max 0 (f32.min 1 (f32.abs (height1 - height2))))) argb.black 1.0 color2), height1 - sun_descent1, sun_descent1)
     else
         (color2, height2, sun_descent1)
 
-let sunlight [h][w] (sun_height: f32) (sun_descent: f32) (color_map: [h][w]i32) (height_map: [h][w]i32) : [h][w]i32 =
+let sunlight_sequential [h][w] (sun_height: f32) (sun_descent: f32) (color_map: [h][w]i32) (height_map: [h][w]i32) : [h][w]i32 =
     let neutral = replicate h (replicate w (argb.from_rgba 0.0 0.0 0.0 0.0))
     let tuples = map2 (\color_row height_row -> map2 (\x y -> (x, f32.i32 y, sun_descent)) color_row height_row) color_map height_map
     let shadowed = map (\rows -> map (\elem -> elem.0) (scan (shade) (0, 0.0, sun_descent) rows)) tuples
     --let smoothed_shadows = interpolate 2 shadowed
     in shadowed--smoothed_shadows--map2 (\row1 row2 -> map2 (\col1 col2 -> argb.add_linear col1 col2) row1 row2) color_map smoothed_shadows
-
 
 --shades based only on the previous height value
 let sunlight_deprecated [h][w] (color_map: [h][w]i32) (height_map: [h][w]i32) : [h][w]i32 = 
