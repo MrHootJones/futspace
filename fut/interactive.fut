@@ -23,7 +23,7 @@ let init (seed: u32): state =
     let init_camera = { x = 512f32,
                         y = 800f32,
                         height = 78f32, --camera height above ground.. does not work as intended due to PNG readouts resulting in huge values (line 83).
-                        angle = 0f32, --angle of the camera around the y-axis.
+                        angle = 0.5f32, --angle of the camera around the y-axis.
                         horizon = 100f32, --emulates camera rotation around the x-axis.
                         distance = 800f32, --max render distance.
                         fov = 0.5}
@@ -41,7 +41,7 @@ let init (seed: u32): state =
         inputs = input_handler.init,
         random = 1.0f32,
         sun_height = 1.0,
-        sun_descent = 0.05
+        sun_descent = 1.0
     }
 
 let resize (height: i32) (width: i32) (s: state) =

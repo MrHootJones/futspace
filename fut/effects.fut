@@ -6,15 +6,15 @@ let interpolate [h][w] (pd: i32) (rendered_image: [h][w]i32) : [h][w]i32 =
     let smoothed_image = 
         map (\y ->
             map (\x -> 
-                    let c = rendered_image[y, x]
-                    let u = rendered_image[(y-pd)%h, x]
-                    let d = rendered_image[(y+pd)%h, x]
-                    let l = rendered_image[y, (x-pd)%h]
-                    let r = rendered_image[y, (x+pd)%h]
-                    let ul = rendered_image[(y-pd)%h, (x-pd)%h]
-                    let ur = rendered_image[(y-pd)%h, (x+pd)%h]
-                    let dl = rendered_image[(y+pd)%h, (x-pd)%h]
-                    let dr = rendered_image[(y+pd)%h, (x+pd)%h]
+                    let c = unsafe rendered_image[y, x]
+                    let u = unsafe rendered_image[(y-pd)%h, x]
+                    let d = unsafe rendered_image[(y+pd)%h, x]
+                    let l = unsafe rendered_image[y, (x-pd)%h]
+                    let r = unsafe rendered_image[y, (x+pd)%h]
+                    let ul = unsafe rendered_image[(y-pd)%h, (x-pd)%h]
+                    let ur = unsafe rendered_image[(y-pd)%h, (x+pd)%h]
+                    let dl = unsafe rendered_image[(y+pd)%h, (x-pd)%h]
+                    let dr = unsafe rendered_image[(y+pd)%h, (x+pd)%h]
                     in argb.mix m1 c m2 (argb.mix m1 u m1 (argb.mix m1 d m1 (argb.mix m1 r m1 (argb.mix m1 l m1 (argb.mix m1 ul m1 (argb.mix m1 ur m1 (argb.mix m1 dl m1 dr)))))))
                     ) (0..<w)
                         ) (0..<h)
@@ -27,20 +27,21 @@ let modulate [h][w] (num: f32) (height_map: [h][w]i32) =
             ) heights (iota w)
                 ) height_map
 
-
---idea: implement heightmap axis-aligned shadows by scanning across the height and color maps and adjusting the colors of the colormap based on whether the height of the previous voxel
---      intersects with a vector representing the sun
+--heightmap axis-aligned shadows by scanning across the height and color maps and adjusting the colors of the colormap based on whether the height of the previous voxel
+--intersects with a vector representing the sun
 let shade (color1: i32, height1: f32, sun_descent1: f32) (color2: i32, height2: f32, sun_descent2: f32) : (i32, f32, f32)=
     if height1 > height2 && sun_descent1 < 2.1 then
+        --((argb.from_rgba 0.0 0.0 0.0 (f32.max 0 (f32.min 1 (f32.abs (height1 - height2))))), height1 - sun_descent1, sun_descent1)
         ((argb.mix (1.5 * (f32.max 0 (f32.min 1 (f32.abs (height1 - height2))))) argb.black 1.0 color2), height1 - sun_descent1, sun_descent1)
     else
         (color2, height2, sun_descent1)
 
 let sunlight [h][w] (sun_height: f32) (sun_descent: f32) (color_map: [h][w]i32) (height_map: [h][w]i32) : [h][w]i32 =
+    let neutral = replicate h (replicate w (argb.from_rgba 0.0 0.0 0.0 0.0))
     let tuples = map2 (\color_row height_row -> map2 (\x y -> (x, f32.i32 y, sun_descent)) color_row height_row) color_map height_map
     let shadowed = map (\rows -> map (\elem -> elem.0) (scan (shade) (0, 0.0, sun_descent) rows)) tuples
-    in shadowed
-
+    --let smoothed_shadows = interpolate 2 shadowed
+    in shadowed--smoothed_shadows--map2 (\row1 row2 -> map2 (\col1 col2 -> argb.add_linear col1 col2) row1 row2) color_map smoothed_shadows
 
 
 --shades based only on the previous height value
