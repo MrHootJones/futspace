@@ -73,7 +73,7 @@ let fill_vline (color1 : i32) (color2 : i32) : i32 =
 let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][w]i32 =
     unsafe
     let z_0 = 1.0
-    let d = 0.005
+    let d = 0.001
 
     --Work = O(depth)
     --Span = O(1)
@@ -91,7 +91,7 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
                                  let inv_z = (1.0 / z) * 240.0
                                  in map (\i -> 
                                           let (x, y) = get_segment h_line i
-                                          let map_height = lsc.altitude[y%r,x%s] & 0xFF
+                                          let map_height = lsc.altitude[y%r,x%s]
                                           let height_diff = c.height - (f32.i32 map_height)
                                           let relative_height = height_diff * inv_z + c.horizon
                                           let abs_height = i32.max 0 (i32.f32 relative_height)

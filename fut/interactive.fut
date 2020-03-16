@@ -10,7 +10,9 @@ type sized_state [h][w] =
         height : i32,
         width : i32,
         inputs : input_handler.input_states,
-        random: f32
+        random: f32,
+        sun_height: f32,
+        sun_descent: f32
     }
     
 type~ state = sized_state [][]
@@ -37,7 +39,9 @@ let init (seed: u32): state =
         height = 1024,
         width = 1024,
         inputs = input_handler.init,
-        random = 1.0f32
+        random = 1.0f32,
+        sun_height = 1.0,
+        sun_descent = 0.05
     }
 
 let resize (height: i32) (width: i32) (s: state) =
@@ -81,9 +85,21 @@ let process_inputs (s: state) : state =
             (if s.inputs.arrowup == 1 then s.cam.distance + 100
             else if s.inputs.arrowdown == 1 && s.cam.distance > 100 then s.cam.distance - 100
             else s.cam.distance)
+        with cam.fov =
+            (if s.inputs.o == 1 then s.cam.fov + 0.1
+            else if s.inputs.l == 1 then s.cam.fov - 0.1
+            else s.cam.fov)
+        with sun_height =
+            (if s.inputs.i == 1 then s.sun_height + 10.1
+            else if s.inputs.k == 1 then s.sun_height - 10.1
+            else s.sun_height)
+        with sun_descent =
+            (if s.inputs.u == 1 then s.sun_descent + 0.005
+            else if s.inputs.j == 1 then s.sun_descent - 0.005
+            else s.sun_descent)
 
 let step (s: state) : state =
-    process_inputs (s with random = s.random + 1)
+    process_inputs (s with random = s.random + 0.001)
 
 let event (e: event) (s: state) =
     match e
@@ -96,15 +112,16 @@ let render (s: state) =
     let (h,w) = shape s.lsc.color
     let s_prime = s :> sized_state [h][w]
     let color_map = --s_prime.lsc.color
-                    sunlight 1 s_prime.lsc.color s_prime.lsc.altitude
+                    --sunlight s_prime.lsc.color s_prime.lsc.altitude
+                    sunlight s_prime.sun_height s_prime.sun_descent s_prime.lsc.color s_prime.lsc.altitude
     let img = render s_prime.cam (s_prime.lsc with color = color_map) s_prime.height s_prime.width
     in img
 
 let text_content (s: state) =
-    (s.cam.x, s.cam.y, s.cam.angle, s.cam.height, s.cam.horizon, s.cam.distance)
+    (s.cam.x, s.cam.y, s.cam.angle, s.cam.height, s.cam.horizon, s.cam.distance, s.sun_height, s.sun_descent)
 
 let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.colour) (s: state) : state =
     s  with lsc.color = color_map
-        with lsc.altitude = height_map
+        with lsc.altitude = interpolate 2 (map (\row -> map (\elem -> elem & 0xFF) row ) height_map)
         with lsc.height = h
         with lsc.width = w
