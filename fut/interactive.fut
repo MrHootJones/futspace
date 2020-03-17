@@ -42,7 +42,7 @@ let init (seed: u32): state =
         width = 1024,
         inputs = input_handler.init,
         random = 1.0f32,
-        sun_height = 0.05,
+        sun_height = -0.1,
         i = 0
     }
 
@@ -57,7 +57,7 @@ let wheel _ _ s = s
 let terrain_collision [r][s] (c: camera) (lsc: landscape[r][s]) : f32 =
     let x = i32.f32 c.x
     let y = i32.f32 c.y
-    let terrain_height = f32.i32 (lsc.altitude[y%r,x%s] & 0xFF)
+    let terrain_height = f32.i32 lsc.altitude[y%r,x%s]
     in
     if c.height < terrain_height then terrain_height
     else c.height
@@ -114,7 +114,7 @@ let render (s: state) =
     --let (h,w,s) = shape s.shadowmaps
     --let s_prime = s :> sized_state [h][w][s]t
     let color_map = s.lsc.color
-    let img = render s.cam (s.lsc with color = blend_color_shadow color_map s.shadowmaps[i32.abs (i32.f32 ((f32.sin s.random) * 29.0))]) s.height s.width
+    let img = render s.cam (s.lsc with color = (generate_shadowmap_seq s.lsc.color s.lsc.altitude s.sun_height)) s.height s.width
     in img
 
 let text_content (s: state) =
@@ -122,7 +122,7 @@ let text_content (s: state) =
 
 let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.colour) (s: state) : state =
     let new_height_map = interpolate 2 (map (\row -> map (\elem -> elem & 0xFF) row ) height_map)
-    let shadow_map_array = map (\scalar -> generate_shadowmap new_height_map (s.sun_height *(f32.i32 scalar))) (1...100)
+    let shadow_map_array = map (\scalar -> generate_shadowmap new_height_map (s.sun_height + (0.03 * f32.i32 scalar))) (1...1)
     let new_color_map = color_map
     in
     s  with lsc.color = new_color_map

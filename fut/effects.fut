@@ -62,3 +62,15 @@ let sunlight_sequential [h][w] (sun_height: f32) (sun_descent: f32) (color_map: 
     let tuples = map2 (\color_row height_row -> map2 (\x y -> (x, f32.i32 y, sun_descent)) color_row height_row) color_map height_map
     let shadowed = map (\rows -> map (\elem -> elem.0) (scan (shade) (0, 0.0, sun_descent) rows)) tuples
     in shadowed
+
+let generate_shadowmap_seq [h][w] (color_map: [h][w]i32) (height_map: [h][w]i32) (sun_dy: f32) : [h][w]i32 =
+    let float_heights = map (\row -> map (\height -> f32.i32 height) row) height_map
+    let (heights, cols) =unzip (map2 (\heights colors -> 
+        loop (heights, colors) for i < (w-1) do
+        if heights[i] > heights[i+1] then
+            (copy heights with [i+1] = heights[i]-sun_dy, (copy colors with [i+1] = argb.mix 1.0 argb.black 1.0 colors[i+1]))
+        else
+            (heights, colors)
+    ) float_heights color_map)
+    in cols
+    
