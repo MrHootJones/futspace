@@ -31,10 +31,10 @@ let modulate [h][w] (num: f32) (height_map: [h][w]i32) =
 let generate_shadowmap [h][w] (height_map: [h][w]i32) (sun_dy: f32) : [h][w]f32=
     map (\height_row -> 
             map2 (\height x ->
-                    let longest_shadow = i32.f32 (255/sun_dy)
-                    let range_start = i32.min (i32.max 0 (x-(i32.abs longest_shadow))) 1023
-                    let elements_before = height_row[range_start:x:1]
-                    let conds = map2 (\elem idx -> if f32.i32 height + f32.i32 (x-idx) * sun_dy <= f32.i32 elem then 1.0 else 0.0) elements_before (0..<(length elements_before))--(0..<x)
+                    --let longest_shadow = i32.f32 (255/sun_dy)
+                    --let range_start = i32.min (i32.max 0 (x-(i32.abs longest_shadow))) 1023
+                    let elements_before = height_row[0:x:1]
+                    let conds = map2 (\elem idx -> if f32.i32 height + f32.i32 (x-idx) * sun_dy <= f32.i32 elem then 1.0 else 0.0) elements_before (0..<x)
                     let truthval = reduce (+) 0.0 conds
                     in truthval
                     --if truthval > 0.0 then
@@ -61,5 +61,4 @@ let sunlight_sequential [h][w] (sun_height: f32) (sun_descent: f32) (color_map: 
     let neutral = replicate h (replicate w (argb.from_rgba 0.0 0.0 0.0 0.0))
     let tuples = map2 (\color_row height_row -> map2 (\x y -> (x, f32.i32 y, sun_descent)) color_row height_row) color_map height_map
     let shadowed = map (\rows -> map (\elem -> elem.0) (scan (shade) (0, 0.0, sun_descent) rows)) tuples
-    --let smoothed_shadows = interpolate 2 shadowed
-    in shadowed--smoothed_shadows--map2 (\row1 row2 -> map2 (\col1 col2 -> argb.add_linear col1 col2) row1 row2) color_map smoothed_shadows
+    in shadowed
