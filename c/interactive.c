@@ -115,7 +115,7 @@ struct internal {
   bool show_text;
 };
 
-int map_num = 0;
+int map_num = 28;
 
 /* Loads a color/heightmap pair using the freeimage library and calls the update_map entrypoint to futspace, which updates the state with the new maps*/
 void load_map(struct lys_context *ctx){
@@ -157,12 +157,12 @@ void load_map(struct lys_context *ctx){
 void loop_iteration(struct lys_context *ctx, struct internal *internal) {
   if(internal->show_text){
     float fps = ctx->fps;
-    float x, y, angle, height, horizon, distance, sun_height, sun_descent;
-    FUT_CHECK(ctx->fut, futhark_entry_text_content(ctx->fut, &x, &y, &angle, &height, &horizon, &distance, &sun_height, &sun_descent, ctx->state));
+    float x, y, angle, height, horizon, distance, sun_height, fov;
+    FUT_CHECK(ctx->fut, futhark_entry_text_content(ctx->fut, &x, &y, &angle, &height, &horizon, &distance, &sun_height, &fov, ctx->state));
     char *text = malloc(300);
     sprintf(text, 
-    "FPS: %f\nX: %f\nY: %f\nAngle: %f\nHeight: %f\nHorizon: %f\nRendering distance: %f\nsun_height: %f\nsun_descent:%f",
-    fps, x, y, angle, height, horizon, distance, sun_height, sun_descent);
+    "FPS: %f\nX: %f\nY: %f\nAngle: %f\nHeight: %f\nHorizon: %f\nRendering distance: %f\nsun_height: %f\nfov: %f\n",
+    fps, x, y, angle, height, horizon, distance, sun_height, fov);
     draw_text(ctx, internal->font, FONT_SIZE, text, 0xff00ffff, 10, 10);
   }
 }
