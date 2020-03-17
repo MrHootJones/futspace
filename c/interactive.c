@@ -115,7 +115,7 @@ struct internal {
   bool show_text;
 };
 
-int map_num = 0;
+int map_num = 28;
 
 /* Loads a color/heightmap pair using the freeimage library and calls the update_map entrypoint to futspace, which updates the state with the new maps*/
 void load_map(struct lys_context *ctx){
