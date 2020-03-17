@@ -107,8 +107,9 @@ let event (e: event) (s: state) =
 let render (s: state) =
     let (h,w) = shape s.lsc.color
     let s_prime = s :> sized_state [h][w]
-    let color_map = s_prime.lsc
-    let img = render s_prime.cam s_prime.lsc s_prime.height s_prime.width
+    let new_shadow_map = generate_shadowmap s_prime.lsc.altitude s_prime.sun_height
+    let color_map = s_prime.lsc.color
+    let img = render s_prime.cam (s_prime.lsc with color = blend_color_shadow color_map new_shadow_map) s_prime.height s_prime.width
     in img
 
 let text_content (s: state) =
