@@ -32,7 +32,7 @@ let generate_shadowmap [h][w] (height_map: [h][w]i32) (sun_dy: f32) : [h][w]f32=
     map (\height_row -> 
             map2 (\height x ->
                     let longest_shadow = i32.f32 (255/sun_dy)
-                    let range_start = i32.max 0 (x-longest_shadow)
+                    let range_start = i32.min (i32.max 0 (x-(i32.abs longest_shadow))) 1023
                     let elements_before = height_row[range_start:x:1]
                     let conds = map2 (\elem idx -> if f32.i32 height + f32.i32 (x-idx) * sun_dy <= f32.i32 elem then 1.0 else 0.0) elements_before (0..<(length elements_before))--(0..<x)
                     let truthval = reduce (+) 0.0 conds
