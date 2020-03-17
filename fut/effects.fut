@@ -27,29 +27,18 @@ let modulate [h][w] (num: f32) (height_map: [h][w]i32) =
             ) heights (iota w)
                 ) height_map
 
-
-let does_occlude (height1: f32, distance1: f32, sun_dy1: f32, occludes1: i32) (height2: f32, distance2: f32, sun_dy2: f32, occludes2: i32) : (f32, f32, f32, i32) =
-    --(height2, distance2, sun_dy1, occludes1 + occludes2 + 0)
-    if (distance2 * sun_dy1) <= height2 then
-        (height2, distance2, sun_dy1, occludes1 + occludes2 + 1)
-    else
-        (height2, distance2, sun_dy1, occludes1 + occludes2 + 0)
-
-let pred (height: f32, distance: f32, sun_dy: f32) : bool =
-    if distance*sun_dy <= height then true else false
-
 let shadowmap_reduce [h][w] (height_map: [h][w]i32) (color_map: [h][w]i32) (sun_dy: f32) : [h][w]i32=
     map2 (\height_row color_row -> 
-            map2 (\color x -> 
+            map3 (\height color x -> 
                     let elements_before = height_row[0:x:1]
-                    let conds = map2 (\elem idx -> f32.i32 (x-idx) * sun_dy <= f32.i32 elem) elements_before (0..<x)
-                    let truthval = reduce (||) false conds
-                    in 
-                    if truthval then
-                        (argb.mix 0.5 argb.black 1.0 color)
+                    let conds = map2 (\elem idx -> if f32.i32 height + f32.i32 (x-idx) * sun_dy <= f32.i32 elem then 1.0 else 0.0) elements_before (0..<x)
+                    let truthval = reduce (+) 0.0 conds
+                    in
+                    if truthval > 0.0 then
+                        (argb.mix (0.8 * truthval) argb.black 0.8 color)
                     else
                         color
-                    ) color_row (0..<w)
+                    ) height_row color_row (0..<w)
             ) height_map color_map
 
 --heightmap axis-aligned shadows by scanning across the height and color maps and adjusting the colors of the colormap based on whether the height of the previous voxel

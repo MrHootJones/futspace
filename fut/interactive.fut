@@ -11,8 +11,7 @@ type sized_state [h][w] =
         width : i32,
         inputs : input_handler.input_states,
         random: f32,
-        sun_height: f32,
-        sun_descent: f32
+        sun_height: f32
     }
     
 type~ state = sized_state [][]
@@ -20,13 +19,13 @@ type~ state = sized_state [][]
 let shape [n][m] 't (_: [n][m]t) = (n,m)
 
 let init (seed: u32): state =
-    let init_camera = { x = 512f32,
-                        y = 800f32,
-                        height = 78f32, --camera height above ground.. does not work as intended due to PNG readouts resulting in huge values (line 83).
-                        angle = 0.5f32, --angle of the camera around the y-axis.
-                        horizon = 100f32, --emulates camera rotation around the x-axis.
+    let init_camera = { x = 430.98f32,
+                        y = 818.6f32,
+                        height = 58f32, --camera height above ground.. does not work as intended due to PNG readouts resulting in huge values (line 83).
+                        angle = 2.2f32, --angle of the camera around the y-axis.
+                        horizon = 200f32, --emulates camera rotation around the x-axis.
                         distance = 800f32, --max render distance.
-                        fov = 0.5}
+                        fov = 1.2}
 
     let init_landscape = {  width = 0, --dummy values, as map loading actually happens when the update_map entrypoint is called from interactive.c
                             height = 0,
@@ -40,8 +39,7 @@ let init (seed: u32): state =
         width = 1024,
         inputs = input_handler.init,
         random = 1.0f32,
-        sun_height = 1.0,
-        sun_descent = 1.0
+        sun_height = 1.0
     }
 
 let resize (height: i32) (width: i32) (s: state) =
@@ -90,13 +88,9 @@ let process_inputs (s: state) : state =
             else if s.inputs.l == 1 then s.cam.fov - 0.1
             else s.cam.fov)
         with sun_height =
-            (if s.inputs.i == 1 then s.sun_height + 10.1
-            else if s.inputs.k == 1 then s.sun_height - 10.1
+            (if s.inputs.u == 1 then s.sun_height + 0.02
+            else if s.inputs.j == 1 then s.sun_height - 0.02
             else s.sun_height)
-        with sun_descent =
-            (if s.inputs.u == 1 then s.sun_descent + 0.005
-            else if s.inputs.j == 1 then s.sun_descent - 0.005
-            else s.sun_descent)
 
 let step (s: state) : state =
     process_inputs (s with random = s.random + 0.001)
@@ -111,18 +105,20 @@ let event (e: event) (s: state) =
 let render (s: state) =
     let (h,w) = shape s.lsc.color
     let s_prime = s :> sized_state [h][w]
-    let color_map = --s_prime.lsc.color
-                    --sunlight s_prime.lsc.color s_prime.lsc.altitude
+    let color_map = s_prime.lsc with color = shadowmap_reduce s_prime.lsc.altitude s_prime.lsc.color s.sun_height
+                    --s_prime.lsc.color
                     --sunlight_sequential s_prime.sun_height s_prime.sun_descent s_prime.lsc.color s_prime.lsc.altitude
-                    shadowmap_reduce s_prime.lsc.altitude s_prime.lsc.color s_prime.sun_descent
-    let img = render s_prime.cam (s_prime.lsc with color = color_map) s_prime.height s_prime.width
+    let img = render s_prime.cam color_map s_prime.height s_prime.width
     in img
 
 let text_content (s: state) =
-    (s.cam.x, s.cam.y, s.cam.angle, s.cam.height, s.cam.horizon, s.cam.distance, s.sun_height, s.sun_descent)
+    (s.cam.x, s.cam.y, s.cam.angle, s.cam.height, s.cam.horizon, s.cam.distance, s.sun_height, s.cam.fov)
 
 let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.colour) (s: state) : state =
-    s  with lsc.color = color_map
-        with lsc.altitude = interpolate 2 (map (\row -> map (\elem -> elem & 0xFF) row ) height_map)
+    let new_height_map = interpolate 2 (map (\row -> map (\elem -> elem & 0xFF) row ) height_map)
+    let new_color_map = color_map--shadowmap_reduce new_height_map color_map s.sun_descent 
+    in
+    s  with lsc.color = new_color_map
+        with lsc.altitude = new_height_map
         with lsc.height = h
         with lsc.width = w
