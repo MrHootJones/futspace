@@ -114,7 +114,7 @@ let render (s: state) =
     let color_map = --s_prime.lsc.color
                     --sunlight s_prime.lsc.color s_prime.lsc.altitude
                     --sunlight_sequential s_prime.sun_height s_prime.sun_descent s_prime.lsc.color s_prime.lsc.altitude
-                    shadowmap_reduce s_prime.lsc.altitude s_prime.lsc.color 0.25
+                    shadowmap_reduce s_prime.lsc.altitude s_prime.lsc.color s_prime.sun_descent
     let img = render s_prime.cam (s_prime.lsc with color = color_map) s_prime.height s_prime.width
     in img
 

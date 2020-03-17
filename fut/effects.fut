@@ -27,26 +27,30 @@ let modulate [h][w] (num: f32) (height_map: [h][w]i32) =
             ) heights (iota w)
                 ) height_map
 
-let does_occlude (height1: f32, distance1: f32, sun_dy1: f32, occludes1: bool) (height2: f32, distance2: f32, sun_dy2: f32, occludes2: bool) : (f32, f32, f32, bool) =
-    if distance1 * sun_dy1 < height1 then
-        (height2, distance2, sun_dy1, occludes1 || occludes2 || true)
+
+let does_occlude (height1: f32, distance1: f32, sun_dy1: f32, occludes1: i32) (height2: f32, distance2: f32, sun_dy2: f32, occludes2: i32) : (f32, f32, f32, i32) =
+    --(height2, distance2, sun_dy1, occludes1 + occludes2 + 0)
+    if (distance1 * sun_dy1) <= height1 then
+        (height2, distance2, sun_dy1, occludes1 + occludes2 + 1)
     else
-        (height2, distance2, sun_dy1, occludes1 || occludes2 || false)
+        (height2, distance2, sun_dy1, occludes1 + occludes2 + 0)
+
+let pred (height: f32, distance: f32, sun_dy: f32) : bool =
+    if distance*sun_dy <= height then true else false
 
 let shadowmap_reduce [h][w] (height_map: [h][w]i32) (color_map: [h][w]i32) (sun_dy: f32) : [h][w]i32=
-    map3 (\height_row color_row y -> 
+    let occlusionvals = map3 (\height_row color_row y -> 
             map3 (\height color x -> 
                     let elements_before = height_row[0:x:1]
-                    let tuples = map2 (\elem idx -> (f32.i32 elem, f32.i32 (x-idx), sun_dy, false)) elements_before (0..<x)
-                    let (_,_,_,occludes) = reduce (does_occlude) (0.0, -1.0, sun_dy, false) tuples
-                    in
-                    if occludes == true then
-                        (argb.mix 1.0 argb.black 1.0 color)
-                    else
-                        color
+                    let tuples = map2 (\elem idx -> (f32.i32 elem, f32.i32 (x-idx), sun_dy)) elements_before (0..<x)
+                    let occluples = (filter (pred) tuples)
+                    let res = length occluples
+                    --let (height, distance, dy, occludes) : (f32, f32, f32, i32) = reduce (does_occlude) (0.0, 10000.0, sun_dy, 0) tuples
+                    in res
                     ) height_row color_row (0..<w)
             ) height_map color_map (0..<h)
-
+    let finalres = map2 (\occlusionrow colrow -> map2 (\occlusion color -> if occlusion > 0 then (argb.mix 0.5 argb.black 1.0 color) else color) occlusionrow colrow) occlusionvals color_map
+    in finalres
 
 --heightmap axis-aligned shadows by scanning across the height and color maps and adjusting the colors of the colormap based on whether the height of the previous voxel
 --intersects with a vector representing the sun
