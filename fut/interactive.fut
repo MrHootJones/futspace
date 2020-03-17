@@ -7,6 +7,7 @@ type sized_state [h][w] =
     {   
         cam : camera,
         lsc : landscape[h][w],
+        shadowmap : [h][w]i32,
         height : i32,
         width : i32,
         inputs : input_handler.input_states,
@@ -35,6 +36,7 @@ let init (seed: u32): state =
     in
     {   cam = init_camera,
         lsc = init_landscape,
+        shadowmap = [[0],[0]],
         height = 1024,
         width = 1024,
         inputs = input_handler.init,
@@ -105,10 +107,8 @@ let event (e: event) (s: state) =
 let render (s: state) =
     let (h,w) = shape s.lsc.color
     let s_prime = s :> sized_state [h][w]
-    let color_map = s_prime.lsc with color = shadowmap_reduce s_prime.lsc.altitude s_prime.lsc.color s.sun_height
-                    --s_prime.lsc.color
-                    --sunlight_sequential s_prime.sun_height s_prime.sun_descent s_prime.lsc.color s_prime.lsc.altitude
-    let img = render s_prime.cam color_map s_prime.height s_prime.width
+    let color_map = s_prime.lsc
+    let img = render s_prime.cam s_prime.lsc s_prime.height s_prime.width
     in img
 
 let text_content (s: state) =
@@ -116,7 +116,8 @@ let text_content (s: state) =
 
 let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.colour) (s: state) : state =
     let new_height_map = interpolate 2 (map (\row -> map (\elem -> elem & 0xFF) row ) height_map)
-    let new_color_map = color_map--shadowmap_reduce new_height_map color_map s.sun_descent 
+    let new_shadow_map = generate_shadowmap new_height_map s.sun_height
+    let new_color_map = blend_color_shadow color_map new_shadow_map
     in
     s  with lsc.color = new_color_map
         with lsc.altitude = new_height_map

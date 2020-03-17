@@ -27,22 +27,27 @@ let modulate [h][w] (num: f32) (height_map: [h][w]i32) =
             ) heights (iota w)
                 ) height_map
 
-let shadowmap_reduce [h][w] (height_map: [h][w]i32) (color_map: [h][w]i32) (sun_dy: f32) : [h][w]i32=
-    map2 (\height_row color_row -> 
-            map3 (\height color x -> 
+--(very) slow but nice shadowmapping. debating on whether to blend the shadowmap with the colormap here or do it separately. right now we do it here
+let generate_shadowmap [h][w] (height_map: [h][w]i32) (sun_dy: f32) : [h][w]f32=
+    map (\height_row -> 
+            map2 (\height x -> 
                     let elements_before = height_row[0:x:1]
                     let conds = map2 (\elem idx -> if f32.i32 height + f32.i32 (x-idx) * sun_dy <= f32.i32 elem then 1.0 else 0.0) elements_before (0..<x)
                     let truthval = reduce (+) 0.0 conds
-                    in
-                    if truthval > 0.0 then
-                        (argb.mix (0.8 * truthval) argb.black 0.8 color)
-                    else
-                        color
-                    ) height_row color_row (0..<w)
-            ) height_map color_map
+                    in truthval
+                    --if truthval > 0.0 then
+                    --    (argb.mix (0.8 * truthval) argb.black 0.8 color)
+                    --else
+                    --    color
+                    ) height_row (0..<w)
+            ) height_map
+
+let blend_color_shadow [h][w] (color_map: [h][w]i32) (shadow_map: [h][w]f32) : [h][w]i32 =
+    map2 (\colors shadows -> map2 (\color shadow -> (argb.mix (0.8 * shadow) argb.black 0.8 color)) colors shadows) color_map shadow_map
 
 --heightmap axis-aligned shadows by scanning across the height and color maps and adjusting the colors of the colormap based on whether the height of the previous voxel
---intersects with a vector representing the sun
+--intersects with a vector representing the sun. now rests here as a backup for inspiration for a potentially sequential implementation of shadowmapping in case we do not find a better way to do it in parallel.
+--is called sequential as it only works on the futhark c compiler, as the shade function is not associative, leading to bugs.
 let shade (color1: i32, height1: f32, sun_descent1: f32) (color2: i32, height2: f32, sun_descent2: f32) : (i32, f32, f32)=
     if height1 > height2 then
         --((argb.from_rgba 0.0 0.0 0.0 (f32.max 0 (f32.min 1 (f32.abs (height1 - height2))))), height1 - sun_descent1, sun_descent1)
@@ -56,28 +61,3 @@ let sunlight_sequential [h][w] (sun_height: f32) (sun_descent: f32) (color_map: 
     let shadowed = map (\rows -> map (\elem -> elem.0) (scan (shade) (0, 0.0, sun_descent) rows)) tuples
     --let smoothed_shadows = interpolate 2 shadowed
     in shadowed--smoothed_shadows--map2 (\row1 row2 -> map2 (\col1 col2 -> argb.add_linear col1 col2) row1 row2) color_map smoothed_shadows
-
---shades based only on the previous height value
-let sunlight_deprecated [h][w] (color_map: [h][w]i32) (height_map: [h][w]i32) : [h][w]i32 = 
-    let height_map = height_map
-    let color_map = color_map
-    in map3 (\color_row height_row prev_height_row-> 
-            map3 (\color height prev_height -> if prev_height > height then (argb.mix 0.9 argb.black 1.0 color) else color) color_row height_row prev_height_row
-            ) color_map height_map (map (\row -> rotate (-1) row) height_map)
-
---more sophisticated than the deprecated version. scans rows of terrain to attempt to determine when a voxel should be shaded 
---based on the most-recently found highest voxel height. calculation is wrong though
-
---keep track of tallest height encountered, check if sun projection from tallest height intersects with following height
-let shade_old (color1: i32, height1: i32, sun_height1: f32, sun_descent1: f32) (color2: i32, height2: i32, sun_height2: f32, sun_descent2: f32) : (i32, i32, f32, f32)=
-    if height1 > height2 then
-        if sun_height1 > 0.0 then
-            ((argb.mix (sun_height1) argb.black 1.0 color2), height1, sun_height1 - sun_descent1, sun_descent1)
-        else
-            ((argb.mix (0.8) argb.black 1.0 color2), height2, sun_height1, sun_descent1)
-    else (color2, height2, sun_height2, sun_descent1)
---for decent results use sun_descent=0.05-0.10 and sun_height>0
-let sunlight_old [h][w] (sun_height: f32) (sun_descent: f32) (color_map: [h][w]i32) (height_map: [h][w]i32) : [h][w]i32 = 
-    let tuples = map2 (\color_row height_row -> map2 (\x y -> (x, y, sun_height, sun_descent)) color_row height_row) color_map height_map
-    let shadowed = map (\rows -> map (\elem -> elem.0) (scan (shade_old) (0, 0, 0.0, sun_descent) rows ) ) tuples
-    in shadowed
