@@ -1,5 +1,4 @@
 import "../lib/github.com/athas/matte/colour"
-
 let interpolate [h][w] (pd: i32) (rendered_image: [h][w]i32) : [h][w]i32 =
     let m1 = 1.0
     let m2 = 1.0
@@ -20,6 +19,13 @@ let interpolate [h][w] (pd: i32) (rendered_image: [h][w]i32) : [h][w]i32 =
                         ) (0..<h)
     in smoothed_image
 
+let interpolate2 [h][w] (img: [h][w]f32) : [h][w]i32 =
+        let img = map (\row -> map (\pixel -> i32.f32 pixel) row) img
+        in
+        map3 (\mids highs lows ->
+            map5 (\l c r u d -> argb.mix 1.0 l 1.0 (argb.mix 1.0 c 1.0 (argb.mix 1.0 r 1.0 (argb.mix 1.0 u 1.0 d)))) (rotate (-1) mids) mids (rotate 1 mids) highs lows 
+            ) img (rotate (-1) img) (rotate 1 img) 
+
 let modulate [h][w] (num: f32) (height_map: [h][w]i32) = 
     map (\heights -> 
         map2 (\height j -> 
@@ -30,22 +36,19 @@ let modulate [h][w] (num: f32) (height_map: [h][w]i32) =
 --(very) slow but nice shadowmapping. debating on whether to blend the shadowmap with the colormap here or do it separately. right now we do it here
 let generate_shadowmap [h][w] (height_map: [h][w]i32) (sun_dy: f32) : [h][w]f32=
     map (\height_row -> 
-            map2 (\height x ->
-                    --let longest_shadow = i32.f32 (255/sun_dy)
-                    --let range_start = i32.min (i32.max 0 (x-(i32.abs longest_shadow))) 1023
-                    let elements_before = height_row[0:x:1]
-                    let conds = map2 (\elem idx -> if f32.i32 height + f32.i32 (x-idx) * sun_dy <= f32.i32 elem then 1.0 else 0.0) elements_before (0..<x)
-                    let truthval = reduce (+) 0.0 conds
-                    in truthval
-                    --if truthval > 0.0 then
-                    --    (argb.mix (0.8 * truthval) argb.black 0.8 color)
-                    --else
-                    --    color
-                    ) height_row (0..<w)
-            ) height_map
+            map2 (\x height->
+                    --Why is the following outcommented line of code more than 50% slower than the new map expression below?
+                    --Intuition tells me it must be related to the fact that the result of each parallel execution of the out-commented map will potentially result
+                    --in arrays of varying length.
 
+                    --let conds = map (\idx -> if f32.i32 height_row[x] + f32.i32 (x-idx) * sun_dy < f32.i32 height_row[idx] then 1.0 else 0.0) (0..<x)
+
+                    let conds = map2 (\idx test_height-> if f32.i32 height + f32.i32 (w-idx) * sun_dy < f32.i32 test_height then 1.0 else 0.0) (0..<w) (rotate x height_row)
+                    in reduce (+) 0.0 conds
+                    ) (0..<w) height_row
+            ) height_map
 let blend_color_shadow [h][w] (color_map: [h][w]i32) (shadow_map: [h][w]f32) : [h][w]i32 =
-    map2 (\colors shadows -> map2 (\color shadow -> (argb.mix (0.8 * shadow) argb.black 0.8 color)) colors shadows) color_map shadow_map
+    map2 (\colors shadows -> map2 (\color shadow -> (argb.mix (0.4 * shadow) argb.black 0.8 color)) colors shadows) color_map shadow_map
 
 --heightmap axis-aligned shadows by scanning across the height and color maps and adjusting the colors of the colormap based on whether the height of the previous voxel
 --intersects with a vector representing the sun. now rests here as a backup for inspiration for a potentially sequential implementation of shadowmapping in case we do not find a better way to do it in parallel.
@@ -62,15 +65,3 @@ let sunlight_sequential [h][w] (sun_height: f32) (sun_descent: f32) (color_map: 
     let tuples = map2 (\color_row height_row -> map2 (\x y -> (x, f32.i32 y, sun_descent)) color_row height_row) color_map height_map
     let shadowed = map (\rows -> map (\elem -> elem.0) (scan (shade) (0, 0.0, sun_descent) rows)) tuples
     in shadowed
-
-let generate_shadowmap_seq [h][w] (color_map: [h][w]i32) (height_map: [h][w]i32) (sun_dy: f32) : [h][w]i32 =
-    let float_heights = map (\row -> map (\height -> f32.i32 height) row) height_map
-    let (heights, cols) =unzip (map2 (\heights colors -> 
-        loop (heights, colors) for i < (w-1) do
-        if heights[i] > heights[i+1] then
-            (copy heights with [i+1] = heights[i]-sun_dy, (copy colors with [i+1] = argb.mix 1.0 argb.black 1.0 colors[i+1]))
-        else
-            (heights, colors)
-    ) float_heights color_map)
-    in cols
-    
