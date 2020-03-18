@@ -33,7 +33,6 @@ let modulate [h][w] (num: f32) (height_map: [h][w]i32) =
             ) heights (iota w)
                 ) height_map
 
---(very) slow but nice shadowmapping. debating on whether to blend the shadowmap with the colormap here or do it separately. right now we do it here
 let generate_shadowmap [h][w] (height_map: [h][w]i32) (sun_dy: f32) : [h][w]f32=
     map (\height_row -> 
             map2 (\x height->
