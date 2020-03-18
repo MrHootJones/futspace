@@ -46,6 +46,7 @@ let generate_shadowmap [h][w] (height_map: [h][w]i32) (sun_dy: f32) : [h][w]f32=
                     in reduce (+) 0.0 conds
                     ) (0..<w) height_row
             ) height_map
+            
 let blend_color_shadow [h][w] (color_map: [h][w]i32) (shadow_map: [h][w]f32) : [h][w]i32 =
     map2 (\colors shadows -> map2 (\color shadow -> (argb.mix (0.4 * shadow) argb.black 0.8 color)) colors shadows) color_map shadow_map
 

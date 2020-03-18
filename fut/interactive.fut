@@ -3,22 +3,20 @@ import "voxel_renderer"
 import "effects"
 module input_handler = import "interactive_input"
 
-type sized_state [h][w][s] =   
+type sized_state [h][w] =   
     {   
         cam : camera,
         lsc : landscape[h][w],
-        shadowmaps: [s][h][w]f32,
         height : i32,
         width : i32,
         inputs : input_handler.input_states,
         random: f32,
-        sun_height: f32,
-        i: i32
+        sun_height: f32
     }
     
-type~ state = sized_state [][][]
+type~ state = sized_state [][]
 
-let shape [n][m][k] 't (_: [n][m][k]t) = (n,m,k)
+let shape [n][m] 't (_: [n][m]t) = (n,m)
 
 let init (seed: u32): state =
     let init_camera = { x = 430.98f32,
@@ -37,13 +35,11 @@ let init (seed: u32): state =
     in
     {   cam = init_camera,
         lsc = init_landscape,
-        shadowmaps = replicate 1 (replicate 1 (replicate 1 0.0)),
         height = 1024,
         width = 1024,
         inputs = input_handler.init,
         random = 1.0f32,
-        sun_height = -0.1,
-        i = 0
+        sun_height = 0.5
     }
 
 let resize (height: i32) (width: i32) (s: state) =
@@ -59,7 +55,7 @@ let terrain_collision [r][s] (c: camera) (lsc: landscape[r][s]) : f32 =
     let y = i32.f32 c.y
     let terrain_height = f32.i32 lsc.altitude[y%r,x%s]
     in
-    if c.height < terrain_height then terrain_height
+    if c.height <= terrain_height then terrain_height
     else c.height
 
 let process_inputs (s: state) : state =
@@ -92,16 +88,13 @@ let process_inputs (s: state) : state =
             else if s.inputs.l == 1 then s.cam.fov - 0.1
             else s.cam.fov)
         with sun_height =
-            (if s.inputs.u == 1 then s.sun_height + 0.02
-            else if s.inputs.j == 1 then s.sun_height - 0.02
+            (if s.inputs.u == 1 then s.sun_height + 0.005
+            else if s.inputs.j == 1 then s.sun_height - 0.005
             else s.sun_height)
-        with i =
-            (if s.inputs.i == 1 then s.i + 1
-            else if s.inputs.k == 1 then s.i - 1
-            else s.i)
 
 let step (s: state) : state =
-    process_inputs (s with random = s.random + 0.004)
+    process_inputs (s with random = s.random + 0.005
+                        with lsc.sky_color = argb.scale 0xFF9090e0 s.sun_height)
 
 let event (e: event) (s: state) =
     match e
@@ -113,8 +106,8 @@ let event (e: event) (s: state) =
 let render (s: state) =
     --let (h,w,s) = shape s.shadowmaps
     --let s_prime = s :> sized_state [h][w][s]t
-    let color_map = s.lsc.color
-    let img = render s.cam (s.lsc with color = (generate_shadowmap_seq s.lsc.color s.lsc.altitude s.sun_height)) s.height s.width
+    let colormap = blend_color_shadow s.lsc.color (generate_shadowmap s.lsc.altitude s.sun_height)
+    let img = render s.cam (s.lsc with color = colormap) s.height s.width
     in img
 
 let text_content (s: state) =
@@ -122,11 +115,9 @@ let text_content (s: state) =
 
 let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.colour) (s: state) : state =
     let new_height_map = interpolate 2 (map (\row -> map (\elem -> elem & 0xFF) row ) height_map)
-    let shadow_map_array = map (\scalar -> generate_shadowmap new_height_map (s.sun_height + (0.03 * f32.i32 scalar))) (1...1)
     let new_color_map = color_map
     in
     s  with lsc.color = new_color_map
         with lsc.altitude = new_height_map
         with lsc.height = h
         with lsc.width = w
-        with shadowmaps = shadow_map_array
