@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <getopt.h>
 #include "lib/github.com/diku-dk/lys/liblys.h"
 
 #include <FreeImage.h>
@@ -217,6 +218,21 @@ int main(int argc, char** argv) {
   bool device_interactive = false;
 
   bool show_text = true;
+
+  int c;
+  while ( (c = getopt(argc, argv, "w:h:r:Rd:b:i")) != -1) {
+    switch (c) {
+    case 'd':
+      deviceopt = optarg;
+      break;
+    case 'i':
+      device_interactive = true;
+      break;
+    default:
+      fprintf(stderr, "unknown option: %c\n", c);
+      return EXIT_FAILURE;
+    }
+  }
 
   uint32_t seed = (int32_t) lys_wall_time();
 
