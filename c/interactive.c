@@ -124,9 +124,9 @@ void load_map(struct lys_context *ctx){
   char* colormap_path[100];
   char* heightmap_path[100];
   sprintf(colormap_path, "data/converted-maps/C%dW.png", map_num);
-  sprintf(heightmap_path, "data/converted-maps/D%d.png", map_num);
-  //sprintf(colormap_path, "data/custom-maps/ocean.png");
-  //sprintf(heightmap_path, "data/custom-maps/flat_height.png");
+  sprintf(heightmap_path, "data//converted-maps/D%d.png", map_num);
+  //sprintf(colormap_path, "data/custom-maps/sanic.png");
+  //sprintf(heightmap_path, "data/custom-maps/sanic_height.png");
   printf("%s\n%s\n", colormap_path, heightmap_path);
   int width, height;
 
@@ -217,10 +217,10 @@ int main(int argc, char** argv) {
   char *deviceopt = NULL;
   bool device_interactive = false;
 
-  bool show_text = true;
+  bool show_text = false;
 
   int c;
-  while ( (c = getopt(argc, argv, "w:h:r:Rd:b:i")) != -1) {
+  while ( (c = getopt(argc, argv, "w:h:r:Rd:b:i:t")) != -1) {
     switch (c) {
     case 'd':
       deviceopt = optarg;
@@ -228,6 +228,8 @@ int main(int argc, char** argv) {
     case 'i':
       device_interactive = true;
       break;
+    case 't':
+      show_text = true;
     default:
       fprintf(stderr, "unknown option: %c\n", c);
       return EXIT_FAILURE;
