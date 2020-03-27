@@ -75,7 +75,7 @@ let fill_vline (color1 : i32) (color2 : i32) : i32 =
     if (color2 == 0)
     then color1
     else color2
-    
+
 --Work = O(width * height)
 -- [r] is size annotation denoting height of color and altitude in landscape record. [s] likewise denotes the width of these. 
 -- h (screen height) and w (screen width) are variables which double as size annotations denoting size of final output map/screen buffer.
@@ -110,11 +110,16 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
                                           let y_interpolated = i32.f32 ((ceil_y - y)*(f32.i32 lsc.altitude[(i32.f32 floor_y)%r,(i32.f32 x)%s]) + 
                                                        (y - floor_y)*(f32.i32 lsc.altitude[(i32.f32 ceil_y)%r,(i32.f32 x)%s]))
                                           let height = (x_interpolated + y_interpolated) / 2
+                                          let x_color_interp =
+                                                argb.mix (ceil_x - x) lsc.color[(i32.f32 y)%r,(i32.f32 floor_x)%s] (x - floor_x) lsc.color[(i32.f32 y)%r,(i32.f32 ceil_x)%s]
+                                          let y_color_interp =
+                                                argb.mix (ceil_y - y) lsc.color[(i32.f32 floor_y)%r,(i32.f32 x)%s] (y - floor_y) lsc.color[(i32.f32 ceil_y)%r,(i32.f32 x)%s]
+                                          let interp_color = argb.mix 0.5 x_color_interp 0.5 y_color_interp
                                           let map_height = height--lsc.altitude[(i32.f32 y)%r,(i32.f32 x)%s]
                                           let height_diff = c.height - (f32.i32 map_height)
                                           let relative_height = height_diff * inv_z + c.horizon
                                           let abs_height = i32.max 0 (i32.f32 relative_height)
-                                          in (lsc.color[(i32.f32 y)%r,(i32.f32 x)%s], abs_height)
+                                          in (interp_color, abs_height)
                                         ) (iota w)
                                 ) zs
                                 
