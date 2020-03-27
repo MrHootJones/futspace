@@ -8,7 +8,7 @@
 
 #include <FreeImage.h>
 
-#define MAX_FPS 60
+#define MAX_FPS 3000
 #define FONT_SIZE 20
 
 #define DISPLAY_WIDTH 512
@@ -230,6 +230,7 @@ int main(int argc, char** argv) {
       break;
     case 't':
       show_text = true;
+      break;
     default:
       fprintf(stderr, "unknown option: %c\n", c);
       return EXIT_FAILURE;
