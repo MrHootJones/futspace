@@ -1,4 +1,5 @@
 import "../lib/github.com/athas/matte/colour"
+import "effects"
 type camera = { x : f32, 
                 y : f32, 
                 height : f32, 
@@ -50,9 +51,9 @@ let get_h_line (z : f32) (c : camera) (w : i32) : line =
          end_y = dy }
 
 --calculates a segment of the line calculated in get_h_line at pixel i in the range 0..w
-let get_segment (l : line) (i : i32) : (i32, i32) =
-    let left_x_int = i32.f32 (l.start_x + (f32.i32 i) * l.end_x)
-    let left_y_int = i32.f32 (l.start_y + (f32.i32 i) * l.end_y)
+let get_segment (l : line) (i : i32) : (f32, f32) =
+    let left_x_int = (l.start_x + (f32.i32 i) * l.end_x)
+    let left_y_int = (l.start_y + (f32.i32 i) * l.end_y)
     in (left_x_int, left_y_int)
 
 --scan operator used to sort through depth-slices in order to determine voxel-column colors and heights.
@@ -61,6 +62,14 @@ let occlude (color1 : i32, height1 : i32 ) (color2 : i32, height2 : i32 ) : (i32
     then (color1, height1)
     else (color2, height2)
 
+let gradient (color1: i32) (color2: i32) : (i32) =
+    if color1 != color2 then
+        (argb.mix 0.1 color2 1.0 color1)
+    else
+        (color2)
+
+let filter_pred (color: i32, index: i32) : bool =
+    if color == 0 then false else true
 --used in conjunction with scan at line 94 (let v_line_filled_no_sky) to fill color gaps in pixel-columns.
 let fill_vline (color1 : i32) (color2 : i32) : i32 =
     if (color2 == 0)
@@ -73,7 +82,7 @@ let fill_vline (color1 : i32) (color2 : i32) : i32 =
 let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][w]i32 =
     unsafe
     let z_0 = 1.0
-    let d = 0.005
+    let d = 0.0001
 
     --Work = O(depth)
     --Span = O(1)
@@ -86,20 +95,29 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
     
     --Work = O(depth*width)
     --Span = O(1)
+
     let height_color_map = map (\z -> 
                                  let h_line = get_h_line z c w
-                                 let inv_z = (1.0 / z) * 240.0
+                                 let inv_z = (1.0 / z) * f32.i32 (w / 2)
                                  in map (\i -> 
                                           let (x, y) = get_segment h_line i
-                                          let map_height = lsc.altitude[y%r,x%s]
+                                          let floor_x = f32.floor x
+                                          let ceil_x = f32.ceil x
+                                          let x_interpolated = i32.f32 ((ceil_x - x)*(f32.i32 lsc.altitude[(i32.f32 y)%r,(i32.f32 floor_x)%s]) + 
+                                                       (x - floor_x)*(f32.i32 lsc.altitude[(i32.f32 y)%r,(i32.f32 ceil_x)%s]))
+                                          let floor_y = f32.floor y
+                                          let ceil_y = f32.ceil y
+                                          let y_interpolated = i32.f32 ((ceil_y - y)*(f32.i32 lsc.altitude[(i32.f32 floor_y)%r,(i32.f32 x)%s]) + 
+                                                       (y - floor_y)*(f32.i32 lsc.altitude[(i32.f32 ceil_y)%r,(i32.f32 x)%s]))
+                                          let height = (x_interpolated + y_interpolated) / 2
+                                          let map_height = height--lsc.altitude[(i32.f32 y)%r,(i32.f32 x)%s]
                                           let height_diff = c.height - (f32.i32 map_height)
                                           let relative_height = height_diff * inv_z + c.horizon
                                           let abs_height = i32.max 0 (i32.f32 relative_height)
-                                          in (lsc.color[y%r,x%s], abs_height)
+                                          in (lsc.color[(i32.f32 y)%r,(i32.f32 x)%s], abs_height)
                                         ) (iota w)
                                 ) zs
-
-    
+                                
     -- h * w 'screen buffer'
     -- Work = O(width * depth + width * height)
     -- Span = O(lg(depth) + lg(height))
@@ -108,7 +126,7 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
                                let (colors, heights) = unzip (scan (occlude) (0, h) i)
                                -- Projects a column of height and color tuples to an h-length array.
                                let v_line_incomplete = scatter (replicate h 0) heights colors
-                               -- fill color gaps in v_line_incomplete. 
+                               -- fill color gaps in v_line_incomplete.
                                let v_line_filled_no_sky = scan (fill_vline) 0 (v_line_incomplete)
                                --Fill sky with sky color, as this is not covered by the previous operation.
                                in map (\col -> if (col == 0) then lsc.sky_color else col) v_line_filled_no_sky
