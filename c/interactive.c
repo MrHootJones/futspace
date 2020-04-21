@@ -124,7 +124,7 @@ void load_map(struct lys_context *ctx){
   char* colormap_path[100];
   char* heightmap_path[100];
   sprintf(colormap_path, "data/converted-maps/C%dW.png", map_num);
-  sprintf(heightmap_path, "data//converted-maps/D%d.png", map_num);
+  sprintf(heightmap_path, "data/converted-maps/D%d.png", map_num);
   //sprintf(colormap_path, "data/custom-maps/sanic.png");
   //sprintf(heightmap_path, "data/custom-maps/sanic_height.png");
   printf("%s\n%s\n", colormap_path, heightmap_path);

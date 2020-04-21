@@ -81,8 +81,8 @@ let fill_vline (color1 : i32) (color2 : i32) : i32 =
 -- h (screen height) and w (screen width) are variables which double as size annotations denoting size of final output map/screen buffer.
 let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][w]i32 =
     unsafe
-    let z_0 = 1.0
-    let d = 0.0001
+    let z_0 = 0.1
+    let d = 0.001
 
     --Work = O(depth)
     --Span = O(1)
