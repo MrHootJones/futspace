@@ -12,6 +12,7 @@ type landscape [h][w] = { width : i32,
                        height : i32,
                        altitude : [h][w]i32,
                        color : [h][w]i32,
+                       shadowed_color : [h][w]i32,
                        sky_color : i32 }
 --this record definition is simply for convenience, i.e. to encapsulate the data returned by get_h_line function below. 
 --The data encapsulated is simply the startpoint of the given horizontal line and the size of its segments. we do not need any more for our purposes
@@ -28,6 +29,12 @@ let get_zs (c : f32) (d: f32) (z_0 : f32) : []f32 =
     let n = i32.f32 (f32.floor (num / div))
     let is = map (\i -> f32.i32 i) (1...n)
     in map (\i -> (i/2) * (2*z_0 + (i-1) * d)) is
+
+--attempt at some type of LOD system by keeping the amount of depth samples fixed, but manipulating the distance between each sample instead.
+let get_zs2 (c : f32) (z: f32) : []f32 =
+    let amount_samples = 1600
+    in map (\i -> ((f32.i32 i)/(-c))**2.0) (0...amount_samples)
+
 
 --calculates the endpoints of a line at depth z from the leftmost coordinate in the field of view
 --to the rightmost coordinate in the field of view. field of view is hardcoded at 90 degs.
@@ -62,12 +69,6 @@ let occlude (color1 : i32, height1 : i32 ) (color2 : i32, height2 : i32 ) : (i32
     then (color1, height1)
     else (color2, height2)
 
-let gradient (color1: i32) (color2: i32) : (i32) =
-    if color1 != color2 then
-        (argb.mix 0.1 color2 1.0 color1)
-    else
-        (color2)
-
 let filter_pred (color: i32, index: i32) : bool =
     if color == 0 then false else true
 --used in conjunction with scan at line 94 (let v_line_filled_no_sky) to fill color gaps in pixel-columns.
@@ -76,17 +77,61 @@ let fill_vline (color1 : i32) (color2 : i32) : i32 =
     then color1
     else color2
 
+let squares (x: f32) (y: f32) : (i32, f32) =
+    let x = x % 1024
+    let y = y % 1024
+    in
+    if x > 256 && f32.abs x < 768 && f32.abs y > 256 && f32.abs y < 768 then
+        (argb.mix 1.0 argb.blue (f32.abs x/f32.abs y) argb.red, 200)
+    else
+        (argb.black, 0)
+
+let expo (x: f32) (y: f32) : (i32, f32) =
+    let x = x % 1024
+    let y = y % 1024
+    let output = (x**2+y**2)
+    in
+    if x > 0 && x < 1024 && y > 0 && y < 1024 then
+        if (i32.f32 x) % 128 == 0 || (i32.f32 y) % 128 == 0 then
+            (argb.black, output/1000)
+        else
+        (argb.mix 1.0 argb.white ((x + y) / 1024) argb.black, output/1000)
+    else
+    (argb.black, 0)
+
+let expo2 (x: f32) (y: f32) : (i32, f32) =
+    let output = (x**2-y**2)/1024
+    in
+    if x > -1024 && x < 1024 && y > -1024 && y < 1024 then
+        if (i32.f32 x) % 128 == 0 || (i32.f32 y) % 128 == 0 then
+            (argb.black, output)
+        else
+        (argb.white, output)
+    else
+    (argb.black, 0)
+
+let wavy (x: f32) (y: f32) : (i32, f32) =
+    let output = (f32.cos ((x*y)/2048.0)) * 100.0
+    let output = 500 + (f32.cos (x/512) * f32.sin (y/512)) * 500.0
+    in
+    if (i32.f32 x) % 32 == 0 || (i32.f32 y) % 32 == 0 then
+        (argb.black, output)
+    else
+    (argb.scale argb.white (output/500.0), output)
+
+    
 --Work = O(width * height)
 -- [r] is size annotation denoting height of color and altitude in landscape record. [s] likewise denotes the width of these. 
 -- h (screen height) and w (screen width) are variables which double as size annotations denoting size of final output map/screen buffer.
 let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][w]i32 =
     unsafe
-    let z_0 = 0.1
-    let d = 0.001
+    let z_0 = 0.0
+    let d = 0.00001
 
     --Work = O(depth)
     --Span = O(1)
-    let zs = get_zs c.distance d z_0
+    --let zs = get_zs c.distance d z_0
+    let zs = get_zs2 c.distance z_0
 
     --len(zs) * w array of color/height tuples. 
     --Currently does not compute expected results. Height values from lsc.altitude for some reason need to be inverted,
@@ -95,30 +140,39 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
     
     --Work = O(depth*width)
     --Span = O(1)
+    let render_map (x : f32) (y : f32) : (i32, f32) =
+        --let x = i32.f32 x
+        --let y = i32.f32 y
+        --let color = lsc.color[(y%1024),(x%1024)]
+        --let height = lsc.altitude[(y%1024), (x%1024)]
+        let floor_x = f32.floor x
+        let ceil_x = f32.ceil x
+        let x_interpolated = i32.f32 ((ceil_x - x)*(f32.i32 lsc.altitude[(i32.f32 y)%r,(i32.f32 floor_x)%s]) + 
+                    (x - floor_x)*(f32.i32 lsc.altitude[(i32.f32 y)%r,(i32.f32 ceil_x)%s]))
+        let floor_y = f32.floor y
+        let ceil_y = f32.ceil y
+        let y_interpolated = i32.f32 ((ceil_y - y)*(f32.i32 lsc.altitude[(i32.f32 floor_y)%r,(i32.f32 x)%s]) + 
+                    (y - floor_y)*(f32.i32 lsc.altitude[(i32.f32 ceil_y)%r,(i32.f32 x)%s]))
+        let height = ((x_interpolated + y_interpolated) / 2)
+        let x_color_interp =
+            argb.mix (ceil_x - x) lsc.color[(i32.f32 y)%r,(i32.f32 floor_x)%s] (x - floor_x) lsc.color[(i32.f32 y)%r,(i32.f32 ceil_x)%s]
+        let y_color_interp =
+            argb.mix (ceil_y - y) lsc.color[(i32.f32 floor_y)%r,(i32.f32 x)%s] (y - floor_y) lsc.color[(i32.f32 ceil_y)%r,(i32.f32 x)%s]
+        let color = argb.mix 0.5 x_color_interp 0.5 y_color_interp
+        in
+        (color, f32.i32 height)
 
     let height_color_map = map (\z -> 
                                  let h_line = get_h_line z c w
                                  let inv_z = (1.0 / z) * f32.i32 (w / 2)
                                  in map (\i -> 
                                           let (x, y) = get_segment h_line i
-                                          let floor_x = f32.floor x
-                                          let ceil_x = f32.ceil x
-                                          let x_interpolated = i32.f32 ((ceil_x - x)*(f32.i32 lsc.altitude[(i32.f32 y)%r,(i32.f32 floor_x)%s]) + 
-                                                       (x - floor_x)*(f32.i32 lsc.altitude[(i32.f32 y)%r,(i32.f32 ceil_x)%s]))
-                                          let floor_y = f32.floor y
-                                          let ceil_y = f32.ceil y
-                                          let y_interpolated = i32.f32 ((ceil_y - y)*(f32.i32 lsc.altitude[(i32.f32 floor_y)%r,(i32.f32 x)%s]) + 
-                                                       (y - floor_y)*(f32.i32 lsc.altitude[(i32.f32 ceil_y)%r,(i32.f32 x)%s]))
-                                          let height = (x_interpolated + y_interpolated) / 2
-                                          let x_color_interp =
-                                                argb.mix (ceil_x - x) lsc.color[(i32.f32 y)%r,(i32.f32 floor_x)%s] (x - floor_x) lsc.color[(i32.f32 y)%r,(i32.f32 ceil_x)%s]
-                                          let y_color_interp =
-                                                argb.mix (ceil_y - y) lsc.color[(i32.f32 floor_y)%r,(i32.f32 x)%s] (y - floor_y) lsc.color[(i32.f32 ceil_y)%r,(i32.f32 x)%s]
-                                          let interp_color = argb.mix 0.5 x_color_interp 0.5 y_color_interp
-                                          let map_height = height--lsc.altitude[(i32.f32 y)%r,(i32.f32 x)%s]
-                                          let height_diff = c.height - (f32.i32 map_height)
+
+                                          let (interp_color, map_height) = render_map x y
+
+                                          let height_diff = c.height - map_height
                                           let relative_height = height_diff * inv_z + c.horizon
-                                          let abs_height = i32.max 0 (i32.f32 relative_height)
+                                          let abs_height = i32.max 0 (i32.f32 relative_height)--f32.max 0.0 relative_height
                                           in (interp_color, abs_height)
                                         ) (iota w)
                                 ) zs
@@ -128,8 +182,9 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
     -- Span = O(lg(depth) + lg(height))
     let rendered_image = map (\i -> 
                                -- Iterates over depth-slice at width i and calculates array of (height, color) tuples.
-                               let (colors, heights) = unzip (scan (occlude) (0, h) i)
+                               let (colors, heights) = unzip (scan (occlude) (0, h) i) --unzip (scan (occlude2) (0, (f32.i32 h)) i)
                                -- Projects a column of height and color tuples to an h-length array.
+                               --let heights = map (\h -> i32.f32 h) heights
                                let v_line_incomplete = scatter (replicate h 0) heights colors
                                -- fill color gaps in v_line_incomplete.
                                let v_line_filled_no_sky = scan (fill_vline) 0 (v_line_incomplete)
