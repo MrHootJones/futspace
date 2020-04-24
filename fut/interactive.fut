@@ -11,7 +11,8 @@ type sized_state [h][w] =
         width : i32,
         inputs : input_handler.input_states,
         random: f32,
-        sun_height: f32
+        sun_height: f32,
+        sun_ang : f32
     }
     
 type~ state = sized_state [][]
@@ -40,7 +41,8 @@ let init (seed: u32): state =
         width = 1024,
         inputs = input_handler.init,
         random = 1.0f32,
-        sun_height = 0.5
+        sun_height = 0.5,
+        sun_ang = 0.0
     }
 
 let resize (height: i32) (width: i32) (s: state) =
@@ -92,9 +94,15 @@ let process_inputs (s: state) : state =
             (if s.inputs.u == 1 then s.sun_height + 0.005
             else if s.inputs.j == 1 then s.sun_height - 0.005
             else s.sun_height)
+        with sun_ang =
+            (if s.inputs.n == 1 then s.sun_ang + 0.05
+            else if s.inputs.m == 1 then s.sun_ang - 0.05
+            else s.sun_ang)
         with lsc.shadowed_color =
-            (if s.inputs.u == 1 then blend_color_shadow s.lsc.color (generate_shadowmap s.lsc.altitude s.sun_height)
-            else if s.inputs.j == 1 then blend_color_shadow s.lsc.color (generate_shadowmap s.lsc.altitude s.sun_height)
+            (if s.inputs.u == 1 then blend_color_shadow s.lsc.color (generate_shadowmap2 s.lsc.altitude s.sun_ang s.sun_height)
+            else if s.inputs.j == 1 then blend_color_shadow s.lsc.color (generate_shadowmap2 s.lsc.altitude s.sun_ang s.sun_height)
+            else if s.inputs.n == 1 then blend_color_shadow s.lsc.color (generate_shadowmap2 s.lsc.altitude s.sun_ang s.sun_height)
+            else if s.inputs.m == 1 then blend_color_shadow s.lsc.color (generate_shadowmap2 s.lsc.altitude s.sun_ang s.sun_height)
             else s.lsc.shadowed_color)
 
 let step (s: state) : state =
