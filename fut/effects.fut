@@ -19,8 +19,8 @@ let interpolate [h][w] (pd: i32) (rendered_image: [h][w]i32) : [h][w]i32 =
                         ) (0..<h)
     in smoothed_image
 
-let interpolate2 [h][w] (img: [h][w]f32) : [h][w]i32 =
-        let img = map (\row -> map (\pixel -> i32.f32 pixel) row) img
+let interpolate2 [h][w] (img: [h][w]i32) : [h][w]i32 =
+        let img = map (\row -> map (\pixel -> pixel) row) img
         in
         map3 (\mids highs lows ->
             map5 (\l c r u d -> argb.mix 1.0 l 1.0 (argb.mix 1.0 c 1.0 (argb.mix 1.0 r 1.0 (argb.mix 1.0 u 1.0 d)))) (rotate (-1) mids) mids (rotate 1 mids) highs lows 
