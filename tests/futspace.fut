@@ -13,10 +13,10 @@ type landscape [h][w] = { width : i32,
                        sky_color : i32 }
 --this record definition is simply for convenience, i.e. to encapsulate the data returned by get_h_line function below. 
 --The data encapsulated is simply the startpoint of the given horizontal line and the size of its segments. we do not need any more for our purposes
-type line = { start_x : f32, 
-              start_y : f32, 
-              end_x : f32, 
-              end_y : f32 } 
+type line = { x_0 : f32, 
+              y_0 : f32, 
+              dx : f32, 
+              dy : f32 } 
 
 --calculates an arithmetic series of values that represent depth-layers in the rendering algorithm.
 let get_zs (c : f32) (d: f32) (z_0 : f32) : []f32 =
@@ -38,22 +38,22 @@ let get_h_line (z : f32) (c : camera) (w : i32) : line =
     let right_x = (cos_ang  - sin_ang * view)*z
     let right_y = (- sin_ang  - cos_ang * view)*z
     
-    let dx = (right_x - left_x) / (f32.i32 w)
-    let dy = (right_y - left_y) / (f32.i32 w)
+    let seg_dim_x = (right_x - left_x) / (f32.i32 w)
+    let seg_dim_y = (right_y - left_y) / (f32.i32 w)
     
     let left_x = left_x + c.x
     let left_y = left_y + c.y
 
-    in { start_x = left_x, 
-         start_y = left_y, 
-         end_x = dx, 
-         end_y = dy }
+    in { x_0 = left_x, 
+         y_0 = left_y, 
+         dx = seg_dim_x, 
+         dy = seg_dim_y}
 
 --calculates a segment of the line calculated in get_h_line at pixel i in the range 0..w
 let get_segment (l : line) (i : i32) : (i32, i32) =
-    let left_x_int = i32.f32 (l.start_x + (f32.i32 i) * l.end_x)
-    let left_y_int = i32.f32 (l.start_y + (f32.i32 i) * l.end_y)
-    in (left_x_int, left_y_int)
+    let x_j = i32.f32 (l.x_0 + (f32.i32 i) * l.dx)
+    let y_j = i32.f32 (l.y_0 + (f32.i32 i) * l.dy)
+    in (x_j, y_j)
 
 --scan operator used to sort through depth-slices in order to determine voxel-column colors and heights.
 let occlude (color1 : i32, height1 : i32 ) (color2 : i32, height2 : i32 ) : (i32, i32) =
