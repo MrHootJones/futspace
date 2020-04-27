@@ -20,12 +20,12 @@ type~ state = sized_state [][]
 let shape [n][m] 't (_: [n][m]t) = (n,m)
 
 let init (seed: u32): state =
-    let init_camera = { x = 430.98f32,
-                        y = 818.6f32,
+    let init_camera = { x = 0.98f32,
+                        y = 0.6f32,
                         height = 58f32, --camera height above ground.. does not work as intended due to PNG readouts resulting in huge values (line 83).
                         angle = 2.2f32, --angle of the camera around the y-axis.
                         horizon = 200f32, --emulates camera rotation around the x-axis.
-                        distance = 0f32, --max render distance.
+                        distance = 800f32, --max render distance.
                         fov = 1.2}
 
     let init_landscape = {  width = 0, --dummy values, as map loading actually happens when the update_map entrypoint is called from interactive.c
@@ -120,7 +120,7 @@ let render (s: state) =
     --let (h,w,s) = shape s.shadowmaps
     --let s_prime = s :> sized_state [h][w][s]t
     --let colormap = blend_color_shadow s.lsc.color (generate_shadowmap s.lsc.altitude s.sun_height)
-    let img = render s.cam (s.lsc with color = s.lsc.shadowed_color) s.height s.width--render s.cam (s.lsc with color = colormap) s.height s.width
+    let img = render s.cam (s.lsc with color = s.lsc.shadowed_color) s.height s.width
     in img
 
 let text_content (s: state) =
@@ -131,7 +131,7 @@ let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.col
     let new_color_map = color_map
     in
     s  with lsc.color = new_color_map
-        with lsc.shadowed_color = new_color_map
         with lsc.altitude = new_height_map
+        with lsc.shadowed_color = (blend_color_shadow new_color_map (generate_shadowmap2 new_height_map s.sun_ang s.sun_height))
         with lsc.height = h
         with lsc.width = w

@@ -54,7 +54,7 @@ let generate_shadowmap2 [h][w] (height_map : [h][w]i32) (ang : f32) (sun_dy : f3
                 let height = height_map[y,x]
                 let conds = map (\dist-> if f32.i32 height + f32.i32 (dist) * sun_dy < f32.i32 height_map[(y + i32.f32 ((f32.i32 dist) * (f32.sin ang)) )%1024, (x + i32.f32 ((f32.i32 dist) * (f32.cos ang)) )%1024] then 1.0 else 0.0) (1..<1024)
                 in reduce (+) 0.0 conds
-            )(0..<w) 
+            )(0..<w)
             ) (0..<h)
 
 let blend_color_shadow [h][w] (color_map: [h][w]i32) (shadow_map: [h][w]f32) : [h][w]i32 =
