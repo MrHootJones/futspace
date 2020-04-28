@@ -21,13 +21,13 @@ type line =
     dx : f32, 
     dy : f32 } 
 
-let get_zs (c : f32) (d: f32) (z_0 : f32) : []f32 =
-  let sqrt =  f32.sqrt ((d-2*z_0)**2 + 8*d*c)
-  let num = sqrt - 2*z_0 + d
-  let div = 2*d
+let get_zs (delta: f32)(d : f32) (z_0 : f32) : []f32 =
+  let sqrt =  f32.sqrt ((delta-2*z_0)**2 + 8*delta*d)
+  let num = sqrt - 2*z_0 + delta
+  let div = 2*delta
   let n = i32.f32 (num / div)
   let is = map (\i -> f32.i32 i) (1...n)
-  in map (\i -> (i/2) * (2*z_0 + (i-1) * d)) is
+  in map (\i -> (i/2) * (2*z_0 + (i-1) * delta)) is
 
 let get_h_line (z : f32) (c : camera) (w : i32) : line =
   let sin_ang = f32.sin c.angle
@@ -59,8 +59,8 @@ let render [q][r] (c: camera) (lsc : landscape [q][r])
                   (h : i32) (w: i32) : [h][w]i32 =
   unsafe
   let z_0 = 1.0
-  let d = 0.005
-  let zs = get_zs c.distance d z_0
+  let delta = 0.005
+  let zs = get_zs delta c.distance z_0
 
   let height_color_pairs = 
     map (\z -> 
