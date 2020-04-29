@@ -50,7 +50,7 @@ let get_h_line (z : f32) (cam : camera) (m : i32) : line =
     dx = seg_dim_x, 
     dy = seg_dim_y }
 
-let get_segment_start (l : line) (j : i32) : (i32, i32) =
+let get_segment_point (l : line) (j : i32) : (i32, i32) =
   let x_j = i32.f32 (l.x_0 + (f32.i32 j) * l.dx)
   let y_j = i32.f32 (l.y_0 + (f32.i32 j) * l.dy)
   in (x_j, y_j)
@@ -68,13 +68,13 @@ let render [q][r] (cam: camera) (lsc : landscape [q][r])
          let inv_z = (1.0 / z) * 240.0
          in 
          map (\j -> 
-             let (x_j, y_j) = get_segment_start h_line j
-             let seg_color = lsc.color[y_j%q,x_j%r]
-             let seg_height = lsc.altitude[y_j%q,x_j%r]
-             let height_diff = cam.height - (f32.i32 seg_height)
+             let (x_j, y_j) = get_segment_point h_line j
+             let seg_point_color = lsc.color[y_j%q,x_j%r]
+             let seg_point_height = lsc.altitude[y_j%q,x_j%r]
+             let height_diff = cam.height - (f32.i32 seg_point_height)
              let relative_height = height_diff * inv_z + cam.horizon
-             let seg_abs_height = i32.max 0 (i32.f32 relative_height)
-             in (seg_color, seg_abs_height)
+             let nonneg_height = i32.max 0 (i32.f32 relative_height)
+             in (seg_point_color, nonneg_height)
              ) (iota m)
         ) zs
 
