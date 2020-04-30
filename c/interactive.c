@@ -7,126 +7,30 @@
 #include "lib/github.com/diku-dk/lys/liblys.h"
 
 #include <FreeImage.h>
-
+#include "freeimage_futspace.h"
 #define MAX_FPS 3000
 #define FONT_SIZE 20
 
-#define DISPLAY_WIDTH 512
-#define DISPLAY_HEIGHT 512
+#define DISPLAY_WIDTH 1280
+#define DISPLAY_HEIGHT 720
 
 
-static unsigned int wrap_fread(void *buffer, unsigned size, unsigned count, fi_handle handle) {
-  return (unsigned) fread(buffer, size, count, (FILE*) handle);
-}
-
-static unsigned int wrap_fwrite(void *buffer, unsigned size, unsigned count, fi_handle handle) {
-  return (unsigned) fwrite(buffer, size, count, (FILE*) handle);
-}
-
-static int wrap_fseek(fi_handle handle, long offset, int origin) {
-  return fseek((FILE*) handle, offset, origin);
-}
-
-static long wrap_ftell(fi_handle handle) {
-  return ftell((FILE*) handle);
-}
-
-int32_t* freeimage_load(const char* filename, FILE *f, unsigned int *width, unsigned int *height) {
-  FreeImageIO io;
-  io.read_proc = (FI_ReadProc) wrap_fread;
-  io.write_proc = NULL;
-  io.seek_proc = (FI_SeekProc) wrap_fseek;
-  io.tell_proc = (FI_TellProc) wrap_ftell;
-
-  FREE_IMAGE_FORMAT fif = FreeImage_GetFileTypeFromHandle(&io, (fi_handle) f, 0);
-  if (fif == FIF_UNKNOWN && filename != NULL) {
-    fif = FreeImage_GetFIFFromFilename(filename);
-  }
-  if (fif == FIF_UNKNOWN) {
-    return NULL;
-  }
-
-  FIBITMAP *dib = FreeImage_LoadFromHandle(fif, &io, (fi_handle) f, 0);
-  if (dib == NULL) {
-    return NULL;
-  }
-
-  *width = FreeImage_GetWidth(dib);
-  *height = FreeImage_GetHeight(dib);
-
-  int32_t* image = (int32_t*) malloc(*width * *height * sizeof(int32_t));
-  if (image == NULL) {
-    FreeImage_Unload(dib);
-    return NULL;
-  }
-  for (int y = 0; y < (int) *height; y++) {
-    for (int x = 0; x < (int) *width; x++) {
-      RGBQUAD rgb;
-      assert(FreeImage_GetPixelColor(dib, x, y, &rgb));
-      int i = (*height - y - 1) * *width + x;
-      image[i] = 0xff000000 | (rgb.rgbRed << 16) | (rgb.rgbGreen << 8) | rgb.rgbBlue;
-    }
-  }
-
-  FreeImage_Unload(dib);
-
-  return image;
-}
-
-void freeimage_save(const char* filename, FILE* f, const int32_t* image,
-                    unsigned int width, unsigned int height) {
-  FreeImageIO io;
-  io.read_proc = NULL;
-  io.write_proc = (FI_WriteProc) wrap_fwrite;
-  io.seek_proc = (FI_SeekProc) wrap_fseek;
-  io.tell_proc = (FI_TellProc) wrap_ftell;
-
-  FREE_IMAGE_FORMAT fif = FreeImage_GetFIFFromFilename(filename);
-  assert(fif != FIF_UNKNOWN);
-
-  FIBITMAP *dib = FreeImage_Allocate((int) width, (int) height, 24, 0, 0, 0);
-  for (int y = 0; y < (int) height; y++) {
-    for (int x = 0; x < (int) width; x++) {
-      int i = (height - y - 1) * width + x;
-      int32_t color = image[i];
-      RGBQUAD rgb;
-      rgb.rgbRed = (color & 0xff0000) >> 16;
-      rgb.rgbGreen = (color & 0x00ff00) >> 8;
-      rgb.rgbBlue = color & 0x0000ff;
-      assert(FreeImage_SetPixelColor(dib, x, y, &rgb));
-    }
-  }
-
-  assert(FreeImage_SaveToHandle(fif, dib, &io, (fi_handle) f, 0));
-
-  FreeImage_Unload(dib);
-}
-
-int32_t* image_load(const char* filename, FILE *f, unsigned int *width, unsigned int *height) {
-  return freeimage_load(filename, f, width, height);
-}
-
-void image_save(const char* filename, FILE* f, const int32_t* image,
-                unsigned int width, unsigned int height) {
-  freeimage_save(filename, f, image, width, height);
-}
 
 struct internal {
   TTF_Font *font;
   bool show_text;
 };
 
-int map_num = 28;
+int map_num = 0;
 
 /* Loads a color/heightmap pair using the freeimage library and calls the update_map entrypoint to futspace, which updates the state with the new maps*/
 void load_map(struct lys_context *ctx){
-  map_num = ((map_num+1) > 29) ? 1 : map_num+1;
+  map_num += 1;
+  map_num = (map_num > 29) ? 1 : map_num;
   char* colormap_path[100];
   char* heightmap_path[100];
   sprintf(colormap_path, "data/converted-maps/C%dW.png", map_num);
   sprintf(heightmap_path, "data/converted-maps/D%d.png", map_num);
-  //sprintf(colormap_path, "data/custom-maps/sanic.png");
-  //sprintf(heightmap_path, "data/custom-maps/sanic_height.png");
   printf("%s\n%s\n", colormap_path, heightmap_path);
   int width, height;
 
@@ -139,8 +43,8 @@ void load_map(struct lys_context *ctx){
 
   FreeImage_Initialise(false);
 
-  int32_t* colormap_data = image_load(colormap_path, colormap, (unsigned int*) &width, (unsigned int*) &height);
-  int32_t* heightmap_data = image_load(heightmap_path, heightmap, (unsigned int*) &width, (unsigned int*) &height);
+  int32_t* colormap_data = freeimage_load(colormap_path, colormap, (unsigned int*) &width, (unsigned int*) &height);
+  int32_t* heightmap_data = freeimage_load(heightmap_path, heightmap, (unsigned int*) &width, (unsigned int*) &height);
   assert(colormap_data != NULL);
   assert(fclose(colormap) != EOF);
   assert(heightmap_data != NULL);
@@ -176,8 +80,8 @@ void handle_event(struct lys_context *ctx, enum lys_event event) {
     loop_iteration(ctx, internal);
     break;
   case LYS_F1:
-    //internal->show_text = !internal->show_text;
     load_map(ctx);
+    break;
   default:
     return;
   }
