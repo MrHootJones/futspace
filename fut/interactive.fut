@@ -83,8 +83,8 @@ let process_inputs (s: state) : state =
             else if s.inputs.f == 1 then terrain_collision (s.cam with height = s.cam.height - 10) s.lsc
             else terrain_collision s.cam s.lsc)
         with cam.distance =
-            (if s.inputs.arrowup == 1 then s.cam.distance + 0.1
-            else if s.inputs.arrowdown == 1 then s.cam.distance - 0.1
+            (if s.inputs.arrowup == 1 then s.cam.distance + 30.0
+            else if s.inputs.arrowdown == 1 then s.cam.distance - 30.0
             else s.cam.distance)
         with cam.fov =
             (if s.inputs.o == 1 then s.cam.fov + 0.1
