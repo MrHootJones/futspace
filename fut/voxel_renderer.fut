@@ -15,6 +15,7 @@ type landscape [h][w] = { width : i32,
                        color : [h][w]i32,
                        shadowed_color : [h][w]i32,
                        sky_color : i32 }
+
 --this record definition is simply for convenience, i.e. to encapsulate the data returned by get_h_line function below. 
 --The data encapsulated is simply the startpoint of the given horizontal line and the size of its segments. we do not need any more for our purposes
 type line = { start_x : f32, 
@@ -78,54 +79,13 @@ let fill_vline (color1 : i32) (color2 : i32) : i32 =
     then color1
     else color2
 
-let squares (x: f32) (y: f32) : (i32, f32) =
-    let x = x % 1024
-    let y = y % 1024
-    in
-    if x > 256 && f32.abs x < 768 && f32.abs y > 256 && f32.abs y < 768 then
-        (argb.mix 1.0 argb.blue (f32.abs x/f32.abs y) argb.red, 200)
-    else
-        (argb.black, 0)
-
-let expo (x: f32) (y: f32) : (i32, f32) =
-    let x = x % 1024
-    let y = y % 1024
-    let output = (x**2+y**2)
-    in
-    if x > 0 && x < 1024 && y > 0 && y < 1024 then
-        if (i32.f32 x) % 128 == 0 || (i32.f32 y) % 128 == 0 then
-            (argb.black, output/1000)
-        else
-        (argb.mix 1.0 argb.white ((x + y) / 1024) argb.black, output/1000)
-    else
-    (argb.black, 0)
-
-let expo2 (x: f32) (y: f32) : (i32, f32) =
-    let output = (x**2-y**2)/1024
-    in
-    if x > -1024 && x < 1024 && y > -1024 && y < 1024 then
-        if (i32.f32 x) % 128 == 0 || (i32.f32 y) % 128 == 0 then
-            (argb.black, output)
-        else
-        (argb.white, output)
-    else
-    (argb.black, 0)
-
-let wavy (x: f32) (y: f32) : (i32, f32) =
-    let output = (f32.cos ((x*y)/2048.0)) * 100.0
-    let output = 500 + (f32.cos (x/512) * f32.sin (y/512)) * 500.0
-    in
-    (argb.scale argb.white (output/500.0), output)
-    
-
-    
 --Work = O(width * height)
 -- [r] is size annotation denoting height of color and altitude in landscape record. [s] likewise denotes the width of these. 
 -- h (screen height) and w (screen width) are variables which double as size annotations denoting size of final output map/screen buffer.
-let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][w]i32 =
+let render [r][s] (c: camera) (lsc : landscape [r][s]) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 -> f32) (h : i32) (w: i32) : [][]i32 =
     unsafe
     let z_0 = 0.0
-    let d = 0.001
+    let d = 0.0001
 
     --Work = O(depth)
     --Span = O(1)
@@ -139,41 +99,12 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
     
     --Work = O(depth*width)
     --Span = O(1)
-    let render_map (x : f32) (y : f32) : (i32, f32) =
-        --let color = lsc.color[(i32.f32 y)%1024, (i32.f32 x)%1024]
-        --let height = f32.i32 lsc.altitude[(i32.f32 y)%1024, (i32.f32 x)%1024]
-        let floor_x = f32.floor x
-        let ceil_x = f32.ceil x
-        let floor_y = f32.floor y
-        let ceil_y = f32.ceil y
-        --let x_interpolated = ((ceil_x - x)*(f32.i32 lsc.altitude[(i32.f32 y)%r,(i32.f32 floor_x)%s]) + 
-        --            (x - floor_x)*(f32.i32 lsc.altitude[(i32.f32 y)%r,(i32.f32 ceil_x)%s]))
-        --let y_interpolated = ((ceil_y - y)*(f32.i32 lsc.altitude[(i32.f32 floor_y)%r,(i32.f32 x)%s]) + 
-        --            (y - floor_y)*(f32.i32 lsc.altitude[(i32.f32 ceil_y)%r,(i32.f32 x)%s]))
-        --let x_color_interp =
-        --    argb.mix (ceil_x - x) lsc.color[(i32.f32 y)%r,(i32.f32 floor_x)%s] (x - floor_x) lsc.color[(i32.f32 y)%r,(i32.f32 ceil_x)%s]
-        --let y_color_interp =
-        --    argb.mix (ceil_y - y) lsc.color[(i32.f32 floor_y)%r,(i32.f32 x)%s] (y - floor_y) lsc.color[(i32.f32 ceil_y)%r,(i32.f32 x)%s]
-        --let color = argb.mix 0.5 x_color_interp 0.5 y_color_interp
-        --let height = ((x_interpolated + y_interpolated) / 2.0)
-        let x_interpolated1 = (ceil_x - x) * f32.i32 lsc.altitude[(i32.f32 floor_y)%r,(i32.f32 floor_x)%s]
-                           + (x - floor_x) * f32.i32 lsc.altitude[(i32.f32 floor_y)%r,(i32.f32 ceil_x)%s]
-        let x_interpolated2 = (ceil_x - x) * f32.i32 lsc.altitude[(i32.f32 ceil_y)%r,(i32.f32 floor_x)%s]
-                           + (x - floor_x) * f32.i32 lsc.altitude[(i32.f32 ceil_y)%r,(i32.f32 ceil_x)%s]
-        let interpolated = (ceil_y - y) * x_interpolated1 + (y - floor_y) * x_interpolated2
-        let height = interpolated
-        let x_interpolated1 = argb.mix (ceil_x - x) lsc.color[(i32.f32 floor_y)%r,(i32.f32 floor_x)%s] (x - floor_x) lsc.color[(i32.f32 floor_y)%r,(i32.f32 ceil_x)%s]
-        let x_interpolated2 = argb.mix (ceil_x - x) lsc.color[(i32.f32 ceil_y)%r,(i32.f32 floor_x)%s] (x - floor_x) lsc.color[(i32.f32 ceil_y)%r,(i32.f32 ceil_x)%s]
-        let color = argb.mix (ceil_y - y) x_interpolated1 (y - floor_y) x_interpolated2
-        in
-        (color, height)
-
     let height_color_map = map (\z -> 
                                  let h_line = get_h_line z c w
                                  let inv_z = (1.0 / z) * f32.i32 (w / 2)
                                  in map (\i ->
                                           let (x, y) = get_segment h_line i
-                                          let (interp_color, map_height) = render_map x y
+                                          let (interp_color, map_height) = (color_fun x y, height_fun x y)
                                           let height_diff = c.height - map_height
                                           let relative_height = height_diff * inv_z + c.horizon
                                           let abs_height = i32.max 0 (i32.f32 relative_height)
@@ -199,9 +130,6 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][
     --Work = O(width * height)
     --Span = O(1)
     in transpose rendered_image
-
-let filter_pred2 (height: i32) : bool =
-    if height == -1 then false else true
 
 let redstuff (height1: i32, dist1: i32) (height2: i32, dist2: i32) : (i32, i32)=
     if dist1 < dist2 then (height1, dist1) else (height2, dist2)
@@ -246,14 +174,10 @@ let render2 [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h]
                     map (\x ->
                         let horz_ang = (f32.i32 x) / ((f32.i32 w)) * (2.5-1.0)
                         let hits = map (\dist -> 
-                            --let height_test = heightmap[((i32.f32 c.y) + i32.f32 (f32.i32 dist*(f32.sin (c.angle+horz_ang))))%1024, ((i32.f32 c.x) + i32.f32 (f32.i32 dist*(f32.cos (c.angle+horz_ang))))%1024]
                             let (color, height) = render_map (c.x + f32.i32 dist*(f32.cos (c.angle+horz_ang))) (c.y + f32.i32 dist*(f32.sin (c.angle+horz_ang)))
-                            --let color = colormap[((i32.f32 c.y) + i32.f32 (f32.i32 dist*(f32.sin (c.angle+horz_ang))))%1024, ((i32.f32 c.x) + i32.f32 (f32.i32 dist*(f32.cos (c.angle+horz_ang))))%1024]
                             in
                             if c.height - f32.i32 dist*vert_ang < height then (color, dist) else (0,i32.f32 (c.distance+1.0))
                         ) (0...(i32.f32 (c.distance/4.0)))
-                        --let filtered_hits = filter filter_pred2 hits
-                        --in head filtered_hits
                         in (reduce (redstuff) (0,100000) hits).0
                         ) (0..<w)
                     

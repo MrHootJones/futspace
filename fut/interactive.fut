@@ -1,15 +1,18 @@
 import "../lib/github.com/diku-dk/lys/lys"
 import "voxel_renderer"
 import "effects"
+import "render_functions"
 module input_handler = import "interactive_input"
 
+type render_mode = #math | #png
 type sized_state [h][w] =   
     {   
+        mode : render_mode,
         cam : camera,
         lsc : landscape[h][w],
         height : i32,
         width : i32,
-        inputs : input_handler.input_states,
+        inputs : input_handler.input_state,
         random: f32,
         sun_height: f32,
         sun_ang : f32
@@ -35,7 +38,9 @@ let init (seed: u32): state =
                             shadowed_color = [[0],[0]],
                             sky_color = 0xFF9090e0}
     in
-    {   cam = init_camera,
+    {   
+        mode = #png,
+        cam = init_camera,
         lsc = init_landscape,
         height = 1024,
         width = 1024,
@@ -53,13 +58,27 @@ let grab_mouse = false
 let mouse _ _ _ s = s
 let wheel _ _ s = s
 
-let terrain_collision [r][s] (c: camera) (lsc: landscape[r][s]) : f32 =
-    let x = i32.f32 c.x
-    let y = i32.f32 c.y
-    let terrain_height = f32.i32 lsc.altitude[y%r,x%s]
-    in
-    if c.height <= terrain_height then terrain_height
-    else c.height
+let terrain_collision (s : state) : state =
+    match s.mode
+    case #math -> 
+        let terrain_height = wavy s.cam.x s.cam.y
+        in
+        s with cam.height =
+            if s.cam.height <= terrain_height then 
+                terrain_height
+            else 
+                s.cam.height
+    case #png ->
+        let (h,w) = shape s.lsc.altitude
+        let x = i32.f32 s.cam.x
+        let y = i32.f32 s.cam.y
+        let terrain_height = f32.i32 s.lsc.altitude[y%h,x%w]
+        in
+        s with cam.height =
+            if s.cam.height <= terrain_height then 
+                terrain_height
+            else 
+                s.cam.height
 
 let process_inputs (s: state) : state =
     s   with cam.x = 
@@ -80,8 +99,8 @@ let process_inputs (s: state) : state =
             else s.cam.horizon)
         with cam.height =
             (if s.inputs.r == 1 then s.cam.height + 10
-            else if s.inputs.f == 1 then terrain_collision (s.cam with height = s.cam.height - 10) s.lsc
-            else terrain_collision s.cam s.lsc)
+            else if s.inputs.f == 1 then s.cam.height - 10
+            else s.cam.height)
         with cam.distance =
             (if s.inputs.arrowup == 1 then s.cam.distance + 30.0
             else if s.inputs.arrowdown == 1 then s.cam.distance - 30.0
@@ -99,15 +118,23 @@ let process_inputs (s: state) : state =
             else if s.inputs.m == 1 then s.sun_ang - 0.05
             else s.sun_ang)
         with lsc.shadowed_color =
-            (if s.inputs.u == 1 then blend_color_shadow s.lsc.color (generate_shadowmap2 s.lsc.altitude s.sun_ang s.sun_height)
-            else if s.inputs.j == 1 then blend_color_shadow s.lsc.color (generate_shadowmap2 s.lsc.altitude s.sun_ang s.sun_height)
-            else if s.inputs.n == 1 then blend_color_shadow s.lsc.color (generate_shadowmap2 s.lsc.altitude s.sun_ang s.sun_height)
-            else if s.inputs.m == 1 then blend_color_shadow s.lsc.color (generate_shadowmap2 s.lsc.altitude s.sun_ang s.sun_height)
+            (if s.inputs.u == 1 then generate_shadowmap2 s.lsc.color s.lsc.altitude s.sun_ang s.sun_height
+            else if s.inputs.j == 1 then generate_shadowmap2 s.lsc.color s.lsc.altitude s.sun_ang s.sun_height
+            else if s.inputs.n == 1 then generate_shadowmap2 s.lsc.color s.lsc.altitude s.sun_ang s.sun_height
+            else if s.inputs.m == 1 then generate_shadowmap2 s.lsc.color s.lsc.altitude s.sun_ang s.sun_height
             else s.lsc.shadowed_color)
+        with mode =
+            if s.inputs.1 == 1 then
+                match s.mode
+                case #png -> #math
+                case #math -> #png
+            else
+                s.mode
 
 let step (s: state) : state =
-    process_inputs (s with random = s.random + 0.005
-                        with lsc.sky_color = argb.scale 0xFF9090e0 s.sun_height)
+    (process_inputs (s with random = s.random + 0.005
+                        with lsc.sky_color = argb.scale 0xFF9090e0 s.sun_height)) 
+    |> terrain_collision
 
 let event (e: event) (s: state) =
     match e
@@ -117,11 +144,14 @@ let event (e: event) (s: state) =
     case _ -> s
 
 let render (s: state) =
-    --let (h,w,s) = shape s.shadowmaps
-    --let s_prime = s :> sized_state [h][w][s]t
-    --let colormap = blend_color_shadow s.lsc.color (generate_shadowmap s.lsc.altitude s.sun_height)
-    let img = render s.cam (s.lsc with color = s.lsc.shadowed_color) s.height s.width
-    in img
+    match s.mode
+    case #math ->
+        render s.cam (s.lsc with color = s.lsc.shadowed_color) function_coloring wavy s.height s.width
+    case #png ->
+        let partial_png_height = png_height s.lsc.altitude
+        let partial_png_color = png_color s.lsc.shadowed_color
+        let img = render s.cam (s.lsc with color = s.lsc.shadowed_color) function_coloring partial_png_height s.height s.width
+        in img
 
 let text_content (s: state) =
     (s.cam.x, s.cam.y, s.cam.angle, s.cam.height, s.cam.horizon, s.cam.distance, s.sun_height, s.cam.fov)
@@ -132,6 +162,6 @@ let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.col
     in
     s  with lsc.color = new_color_map
         with lsc.altitude = new_height_map
-        with lsc.shadowed_color = (blend_color_shadow new_color_map (generate_shadowmap2 new_height_map s.sun_ang s.sun_height))
+        with lsc.shadowed_color = generate_shadowmap2 new_color_map new_height_map s.sun_ang s.sun_height
         with lsc.height = h
         with lsc.width = w
