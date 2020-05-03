@@ -3,7 +3,7 @@
 
 import "../lib/github.com/diku-dk/lys/lys"
 
-type input_states =
+type input_state =
     {
         a: i8,
         b: i8,
@@ -47,7 +47,7 @@ type input_states =
         0: i8
     }
 
-let keydown key (inputs: input_states) =
+let keydown key (inputs: input_state) =
         if key == SDLK_a then inputs with a = 1
         else if key == SDLK_b then inputs with b = 1
         else if key == SDLK_c then inputs with c = 1
@@ -90,7 +90,7 @@ let keydown key (inputs: input_states) =
         else if key == SDLK_0 then inputs with 0 = 1
         else inputs
 
-let keyup key (inputs: input_states) =
+let keyup key (inputs: input_state) =
         if key == SDLK_a then inputs with a = 0
         else if key == SDLK_b then inputs with b = 0
         else if key == SDLK_c then inputs with c = 0
@@ -133,7 +133,7 @@ let keyup key (inputs: input_states) =
         else if key == SDLK_0 then inputs with 0 = 0
         else inputs
 
-let init : input_states = 
+let init : input_state = 
     {
         a = 0,
         b = 0,
