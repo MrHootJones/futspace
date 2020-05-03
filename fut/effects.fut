@@ -47,19 +47,19 @@ let generate_shadowmap [h][w] (height_map: [h][w]i32) (sun_dy: f32) : [h][w]f32 
                     ) (0..<w) height_row
             ) height_map
 
-let generate_shadowmap2 [h][w] (height_map : [h][w]i32) (ang : f32) (sun_dy : f32) : [h][w]f32 =
+let generate_shadowmap2 [h][w] (color_map : [h][w]i32) (height_map : [h][w]i32) (ang : f32) (sun_dy : f32) : [h][w]i32 =
     unsafe
-    map (\y -> 
+    let intensities = 
+        map (\y -> 
             map (\x ->
                 let height = height_map[y%h,x%h]
                 let conds = map (\dist-> if f32.i32 height + f32.i32 (dist) * sun_dy < f32.i32 height_map[(y + i32.f32 ((f32.i32 dist) * (f32.sin ang)) )%h, (x + i32.f32 ((f32.i32 dist) * (f32.cos ang)) )%w] then 1.0 else 0.0) (1..<1024)
                 in reduce (+) 0.0 conds
             )(0..<w)
             ) (0..<h)
-
-let blend_color_shadow [h][w] (color_map: [h][w]i32) (shadow_map: [h][w]f32) : [h][w]i32 =
-    map2 (\colors shadows -> map2 (\color shadow -> (argb.mix (0.4 * shadow) argb.black 0.8 color)) colors shadows) color_map shadow_map
-
+    in
+    map2 (\colors intensities_row -> map2 (\color intensity -> (argb.mix (0.4 * intensity) argb.black 0.8 color)) colors intensities_row) color_map intensities
+    
 --heightmap axis-aligned shadows by scanning across the height and color maps and adjusting the colors of the colormap based on whether the height of the previous voxel
 --intersects with a vector representing the sun. now rests here as a backup for inspiration for a potentially sequential implementation of shadowmapping in case we do not find a better way to do it in parallel.
 --is called sequential as it only works on the futhark c compiler, as the shade function is not associative, leading to bugs.
