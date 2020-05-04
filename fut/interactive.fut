@@ -29,14 +29,15 @@ let init (seed: u32): state =
                         angle = 2.2f32, --angle of the camera around the y-axis.
                         horizon = 200f32, --emulates camera rotation around the x-axis.
                         distance = 800f32, --max render distance.
-                        fov = 1.2}
+                        fov = 1.2,
+                        sky_color = 0}
 
     let init_landscape = {  width = 0, --dummy values, as map loading actually happens when the update_map entrypoint is called from interactive.c
                             height = 0,
                             altitude = [[0],[0]],
                             color =  [[0],[0]],
-                            shadowed_color = [[0],[0]],
-                            sky_color = 0xFF9090e0}
+                            shadowed_color = [[0],[0]]
+                            }
     in
     {   
         mode = #png,
@@ -133,7 +134,7 @@ let process_inputs (s: state) : state =
 
 let step (s: state) : state =
     (process_inputs (s with random = s.random + 0.005
-                        with lsc.sky_color = argb.scale 0xFF9090e0 s.sun_height)) 
+                        with cam.sky_color = argb.scale 0xFF9090e0 s.sun_height)) 
     |> terrain_collision
 
 let event (e: event) (s: state) =
@@ -146,11 +147,11 @@ let event (e: event) (s: state) =
 let render (s: state) =
     match s.mode
     case #math ->
-        render s.cam (s.lsc with color = s.lsc.shadowed_color) function_coloring wavy s.height s.width
+        render s.cam function_coloring wavy s.height s.width
     case #png ->
-        let partial_png_height = png_height s.lsc.altitude
-        let partial_png_color = png_color s.lsc.shadowed_color
-        let img = render s.cam (s.lsc with color = s.lsc.shadowed_color) function_coloring partial_png_height s.height s.width
+        let partial_png_height = png_height_filtered s.lsc.altitude
+        let partial_png_color = png_color_filtered s.lsc.shadowed_color
+        let img = render s.cam partial_png_color partial_png_height s.height s.width
         in img
 
 let text_content (s: state) =

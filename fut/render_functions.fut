@@ -60,8 +60,11 @@ let bilinear_filter (color_fun : f32 -> f32 -> argb.colour) (height_fun : f32 ->
 
         in (interpolated_color, interpolated_height)
 
---bilinearly filtered height from png heightmap
 let png_height [h][w] (heights : [h][w]i32) (x : f32) (y : f32) : f32 =
+    f32.i32 heights[(i32.f32 y)%h, (i32.f32 x)%w]
+
+--bilinearly filtered height from png heightmap
+let png_height_filtered [h][w] (heights : [h][w]i32) (x : f32) (y : f32) : f32 =
         let floor_x = f32.floor x
         let ceil_x = f32.ceil x
         let floor_y = f32.floor y
@@ -73,8 +76,23 @@ let png_height [h][w] (heights : [h][w]i32) (x : f32) (y : f32) : f32 =
                            + (x - floor_x) * f32.i32 heights[(i32.f32 ceil_y)%h,(i32.f32 ceil_x)%w]
         in (ceil_y - y) * x_interpolated1 + (y - floor_y) * x_interpolated2
 
---bilinearly filtered color from png colormap        
+--semi functional bilinear filtering implemented before bilinear. has a neat look in certain spots, hence why it's staying here for now
+let png_height_filtered2 [h][w] (heights : [h][w]i32) (x : f32) (y : f32) : f32 =
+    let floor_x = f32.floor x
+    let ceil_x = f32.ceil x
+    let floor_y = f32.floor y
+    let ceil_y = f32.ceil y
+    let x_interpolated = ((ceil_x - x)*(f32.i32 heights[(i32.f32 y)%h,(i32.f32 floor_x)%w]) + 
+                    (x - floor_x)*(f32.i32 heights[(i32.f32 y)%h,(i32.f32 ceil_x)%w]))
+    let y_interpolated = ((ceil_y - y)*(f32.i32 heights[(i32.f32 floor_y)%h,(i32.f32 x)%w]) + 
+                (y - floor_y)*(f32.i32 heights[(i32.f32 ceil_y)%h,(i32.f32 x)%w]))
+    in ((x_interpolated + y_interpolated) / 2.0)
+
 let png_color [h][w] (colors : [h][w]i32) (x : f32) (y : f32) : i32 =
+    colors[(i32.f32 y)%h,(i32.f32 x)%w]
+
+--bilinearly filtered color from png colormap      
+let png_color_filtered [h][w] (colors : [h][w]i32) (x : f32) (y : f32) : i32 =
         let floor_x = f32.floor x
         let ceil_x = f32.ceil x
         let floor_y = f32.floor y
@@ -85,3 +103,15 @@ let png_color [h][w] (colors : [h][w]i32) (x : f32) (y : f32) : i32 =
         let color = argb.mix (ceil_y - y) x_interpolated1 (y - floor_y) x_interpolated2
         in
         color
+
+--companion to png_height_filtered2. stays for same reason
+let png_color_filtered2 [h][w] (colors : [h][w]i32) (x : f32) (y : f32) : i32 =
+    let floor_x = f32.floor x
+    let ceil_x = f32.ceil x
+    let floor_y = f32.floor y
+    let ceil_y = f32.ceil y
+    let x_color_interp =
+        argb.mix (ceil_x - x) colors[(i32.f32 y)%h,(i32.f32 floor_x)%w] (x - floor_x) colors[(i32.f32 y)%h,(i32.f32 ceil_x)%w]
+    let y_color_interp =
+        argb.mix (ceil_y - y) colors[(i32.f32 floor_y)%h,(i32.f32 x)%w] (y - floor_y) colors[(i32.f32 ceil_y)%h,(i32.f32 x)%w]
+    in argb.mix 0.5 x_color_interp 0.5 y_color_interp

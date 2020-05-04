@@ -7,14 +7,14 @@ type camera = { x : f32,
                 angle : f32, 
                 horizon : f32, 
                 distance : f32,
-                fov : f32}
+                fov : f32,
+                sky_color : i32}
 
 type landscape [h][w] = { width : i32,
                        height : i32,
                        altitude : [h][w]i32,
                        color : [h][w]i32,
-                       shadowed_color : [h][w]i32,
-                       sky_color : i32 }
+                       shadowed_color : [h][w]i32}
 
 --this record definition is simply for convenience, i.e. to encapsulate the data returned by get_h_line function below. 
 --The data encapsulated is simply the startpoint of the given horizontal line and the size of its segments. we do not need any more for our purposes
@@ -82,10 +82,10 @@ let fill_vline (color1 : i32) (color2 : i32) : i32 =
 --Work = O(width * height)
 -- [r] is size annotation denoting height of color and altitude in landscape record. [s] likewise denotes the width of these. 
 -- h (screen height) and w (screen width) are variables which double as size annotations denoting size of final output map/screen buffer.
-let render [r][s] (c: camera) (lsc : landscape [r][s]) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 -> f32) (h : i32) (w: i32) : [][]i32 =
+let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 -> f32) (h : i32) (w: i32) : [][]i32 =
     unsafe
     let z_0 = 0.0
-    let d = 0.0001
+    let d = 0.001
 
     --Work = O(depth)
     --Span = O(1)
@@ -104,6 +104,8 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (color_fun : f32 -> f32 -
                                  let inv_z = (1.0 / z) * f32.i32 (w / 2)
                                  in map (\i ->
                                           let (x, y) = get_segment h_line i
+                                          let x = loop x_copy = x while (x_copy > 1024.0 || x_copy < 0) do if x_copy > 1024 then (x_copy - 1024.0) else (x_copy + 1024.0)
+                                          let y = loop y_copy = y while (y_copy > 1024.0 || y_copy < 0) do if y_copy > 1024 then (y_copy - 1024.0) else (y_copy + 1024.0)
                                           let (interp_color, map_height) = (color_fun x y, height_fun x y)
                                           let height_diff = c.height - map_height
                                           let relative_height = height_diff * inv_z + c.horizon
@@ -123,7 +125,7 @@ let render [r][s] (c: camera) (lsc : landscape [r][s]) (color_fun : f32 -> f32 -
                                -- fill color gaps in v_line_incomplete.
                                let v_line_filled_no_sky = scan (fill_vline) 0 (v_line_incomplete)
                                --Fill sky with sky color, as this is not covered by the previous operation.
-                               in map (\col -> if (col == 0) then lsc.sky_color else col) v_line_filled_no_sky
+                               in map (\col -> if (col == 0) then c.sky_color else col) v_line_filled_no_sky
                             ) (transpose height_color_map)
     --finally tranpose rendered image from w*h to h*w
 
