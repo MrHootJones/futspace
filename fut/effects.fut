@@ -47,6 +47,7 @@ let generate_shadowmap [h][w] (height_map: [h][w]i32) (sun_dy: f32) : [h][w]f32 
                     ) (0..<w) height_row
             ) height_map
 
+--generates a colormap with shadows from a pair of color and height maps.
 let generate_shadowmap2 [h][w] (color_map : [h][w]i32) (height_map : [h][w]i32) (ang : f32) (sun_dy : f32) : [h][w]i32 =
     unsafe
     let intensities = 
