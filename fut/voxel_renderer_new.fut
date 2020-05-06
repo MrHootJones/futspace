@@ -186,17 +186,18 @@ let render [q][r] (cam: camera) (lsc : landscape [q][r]) (l : i32) (m: i32) : [l
         -- h * w 'screen buffer'
         -- Work = O(width * depth + width * height)
         -- Span = O(lg(depth) + lg(height))
-    let rendered_image = 
+    let rendered_frame = 
         map (\m -> 
-            let (cs, hs) = unzip (scan (occlude) (0, l) m)
-            let v_line = scatter (replicate l lsc.sky_color) hs cs
-            in scan (fill) lsc.sky_color v_line
+            let col_occluded = scan (occlude) (0, l) m
+            let (cs, hs) = unzip col_occluded
+            let screen_col = scatter (replicate l lsc.sky_color) hs cs
+            in scan (fill) lsc.sky_color screen_col
             ) (transpose color_height_pairs)
         --finally tranpose rendered image from w*h to h*w
 
         --Work = O(width * height)
         --Span = O(1)
-        in transpose rendered_image
+        in transpose rendered_frame
 
 let filter_pred2 (height: i32) : bool =
     if height == -1 then false else true
