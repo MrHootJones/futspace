@@ -89,14 +89,15 @@ let render [q][r] (cam: camera) (lsc : landscape [q][r])
     then c_1
     else c_2 
 
-  let rendered_image = 
-    map (\m -> 
-         let (cs, hs) = unzip (scan (occlude) (0, l) m)
-         let v_line = scatter (replicate l lsc.sky_color) hs cs
-         in scan (fill) lsc.sky_color v_line
+  let rendered_frame = 
+    map (\j -> 
+         let col_occluded = scan (occlude) (0, l) j
+         let (cs, hs) = unzip col_occluded
+         let screen_col = scatter (replicate l lsc.sky_color) hs cs
+         in scan (fill) lsc.sky_color screen_col
         ) (transpose color_height_pairs)
 
-  in transpose rendered_image
+  in transpose rendered_frame
 
 let main [q][r] (color_map : [q][r]i32) 
                 (height_map: [q][r]i32) : [][]i32 =
