@@ -1,4 +1,27 @@
 
+-- benchmark program as a function of d, m and l respectively
+-- ==
+-- input @ d_10
+-- input @ d_100
+-- input @ d_1000
+-- input @ d_10000
+-- input @ d_100000
+-- input @ d_500000
+-- input @ d_1000000
+-- input @ m_10
+-- input @ m_100
+-- input @ m_1000
+-- input @ m_10000
+-- input @ m_100000
+-- input @ m_500000
+-- input @ m_1000000
+-- input @ l_10
+-- input @ l_100
+-- input @ l_1000
+-- input @ l_10000
+-- input @ l_100000
+-- input @ l_500000
+-- input @ l_1000000
 type camera = 
   { x : f32, 
     y : f32, 
@@ -93,7 +116,8 @@ let render [q][r] (cam: camera) (lsc : landscape [q][r])
     map (\j -> 
          let col_occluded = scan (occlude) (0, l) j
          let (cs, hs) = unzip col_occluded
-         let screen_col = scatter (replicate l lsc.sky_color) hs cs
+         let init__col = replicate l lsc.sky_color
+         let screen_col = scatter init__col hs cs
          in scan (fill) lsc.sky_color screen_col
         ) (transpose color_height_pairs)
 
