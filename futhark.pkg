@@ -1,4 +1,5 @@
 require {
   github.com/diku-dk/lys 0.1.8 #bc6079ec1570407eb1bb64d866ccd407a87a1d3c
   github.com/athas/matte 0.1.1 #24f332e6ff8b5872b950cfcbead9b2f7c6571490
+  github.com/diku-dk/linalg 0.2.6 #79c6a67b4cba41642a4289abd3a44e426ba0e450
 }
