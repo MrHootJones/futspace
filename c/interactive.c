@@ -8,13 +8,11 @@
 
 #include <FreeImage.h>
 #include "freeimage_futspace.h"
-#define MAX_FPS 3000
+#define MAX_FPS 3000000
 #define FONT_SIZE 20
 
-#define DISPLAY_WIDTH 1280
-#define DISPLAY_HEIGHT 720
-
-
+#define DISPLAY_WIDTH 1024
+#define DISPLAY_HEIGHT 1024
 
 struct internal {
   TTF_Font *font;
@@ -62,12 +60,12 @@ void load_map(struct lys_context *ctx){
 void loop_iteration(struct lys_context *ctx, struct internal *internal) {
   if(internal->show_text){
     float fps = ctx->fps;
-    float x, y, angle, height, horizon, distance, sun_height, fov;
-    FUT_CHECK(ctx->fut, futhark_entry_text_content(ctx->fut, &x, &y, &angle, &height, &horizon, &distance, &sun_height, &fov, ctx->state));
+    float x, y, angle, height, horizon, distance, sun_height, sun_ang, fov;
+    FUT_CHECK(ctx->fut, futhark_entry_text_content(ctx->fut, &x, &y, &angle, &height, &horizon, &distance, &sun_height, &sun_ang, &fov, ctx->state));
     char *text = malloc(300);
     sprintf(text, 
-    "FPS: %f\nX: %f\nY: %f\nAngle: %f\nHeight: %f\nHorizon: %f\nRendering distance: %f\nsun_height: %f\nfov: %f\n",
-    fps, x, y, angle, height, horizon, distance, sun_height, fov);
+    "FPS: %f\nX: %f\nY: %f\nAngle: %f\nHeight: %f\nHorizon: %f\nRendering distance: %f\nsun_height: %f\nsun_ang: %f\nfov: %f\n",
+    fps, x, y, angle, height, horizon, distance, sun_height, sun_ang, fov);
     draw_text(ctx, internal->font, FONT_SIZE, text, 0xff00ffff, 10, 10);
   }
 }

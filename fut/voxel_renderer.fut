@@ -1,5 +1,6 @@
 import "../lib/github.com/athas/matte/colour"
-import "effects"
+
+type smoothing = #on | #off
 
 type camera = { x : f32, 
                 y : f32, 
@@ -30,7 +31,7 @@ let get_zs (c : f32) (d: f32) (z_0 : f32) : []f32 =
     let div = 2*d
     let n = i32.f32 (f32.floor (num / div))
     let is = map (\i -> f32.i32 i) (1...n)
-    in map (\i -> (i/2) * (2*z_0 + (i-1) * d)) is
+    in map (\i -> ((i/2) * (2*z_0 + (i-1) * d))) is
 
 --attempt at some type of LOD system by keeping the amount of depth samples fixed, but manipulating the distance between each sample instead.
 let get_zs2 (c : f32) (z: f32) : []f32 =
@@ -79,10 +80,25 @@ let fill_vline (color1 : i32) (color2 : i32) : i32 =
     then color1
     else color2
 
+let fill_vline2 (color1 : (i32,i32,i32,i32)) (color2 : (i32,i32,i32,i32)) : (i32,i32,i32,i32) =
+    if (color2 == (0,0,0,0))
+    then color1
+    else color2
+
+let occlude2 (color1 : i32, height1 : i32, idx1 : i32 ) (color2 : i32, height2 : i32, idx2 : i32 ) : (i32, i32, i32) =
+    if (height1 <= height2)
+    then (color1, height1, idx1)
+    else (color2, height2, idx2)
+
+let fill_vline3 (color1 : (i32,i32,i32,i32,i32,i32)) (color2 : (i32,i32,i32,i32,i32,i32)) : (i32,i32,i32,i32,i32,i32) =
+    if (color2 == (0,0,0,0,1000,1000))
+    then color1
+    else color2
+
 --Work = O(width * height)
 -- [r] is size annotation denoting height of color and altitude in landscape record. [s] likewise denotes the width of these. 
 -- h (screen height) and w (screen width) are variables which double as size annotations denoting size of final output map/screen buffer.
-let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 -> f32) (h : i32) (w: i32) : [][]i32 =
+let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 -> f32) (h : i32) (w: i32) (t : smoothing) : [][]i32 =
     unsafe
     let z_0 = 0.0
     let d = 0.001
@@ -90,7 +106,8 @@ let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 
     --Work = O(depth)
     --Span = O(1)
     let zs = get_zs c.distance d z_0
-    --let zs = get_zs2 c.distance z_0
+    let zslen = length zs
+    --let zs = map (\i -> 2 * f32.i32 i) (0..<(i32.f32 c.distance))--get_zs2 c.distance z_0
 
     --len(zs) * w array of color/height tuples. 
     --Currently does not compute expected results. Height values from lsc.altitude for some reason need to be inverted,
@@ -99,13 +116,14 @@ let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 
     
     --Work = O(depth*width)
     --Span = O(1)
+
     let height_color_map = map (\z -> 
                                  let h_line = get_h_line z c w
                                  let inv_z = (1.0 / z) * f32.i32 (w / 2)
                                  in map (\i ->
                                           let (x, y) = get_segment h_line i
-                                          let x = loop x_copy = x while (x_copy > 1024.0 || x_copy < 0) do if x_copy > 1024 then (x_copy - 1024.0) else (x_copy + 1024.0)
-                                          let y = loop y_copy = y while (y_copy > 1024.0 || y_copy < 0) do if y_copy > 1024 then (y_copy - 1024.0) else (y_copy + 1024.0)
+                                          --let x = loop x_copy = x while (x_copy > 1024.0 || x_copy < 0) do if x_copy > 1024 then (x_copy - 1024.0) else (x_copy + 1024.0)
+                                          --let y = loop y_copy = y while (y_copy > 1024.0 || y_copy < 0) do if y_copy > 1024 then (y_copy - 1024.0) else (y_copy + 1024.0)
                                           let (interp_color, map_height) = (color_fun x y, height_fun x y)
                                           let height_diff = c.height - map_height
                                           let relative_height = height_diff * inv_z + c.horizon
@@ -117,6 +135,7 @@ let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 
     -- h * w 'screen buffer'
     -- Work = O(width * depth + width * height)
     -- Span = O(lg(depth) + lg(height))
+
     let rendered_image = map (\i -> 
                                -- Iterates over depth-slice at width i and calculates array of (height, color) tuples.
                                let (colors, heights) = unzip (scan (occlude) (0, h) i)
@@ -127,11 +146,108 @@ let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 
                                --Fill sky with sky color, as this is not covered by the previous operation.
                                in map (\col -> if (col == 0) then c.sky_color else col) v_line_filled_no_sky
                             ) (transpose height_color_map)
+
+    let rendered_image2 = map (\i -> 
+                               -- Iterates over depth-slice at width i and calculates array of (height, color) tuples.
+                               let (colors, heights) = unzip (scan (occlude) (0, h) i)
+                               -- Projects a column of height and color tuples to an h-length array.
+                               let complex = map4 (\col next_col height next_height -> (col, next_col, height, next_height)) colors (rotate (1) colors) heights (rotate (-1) heights)
+                               let v_line_complex = scatter (replicate h (0,0,0,0)) heights complex
+                               let v_line_filled_no_sky = scan (fill_vline2) (0,0,0,0) (v_line_complex)
+                               let smoothed_v_line = map2 (\tuple idx ->
+                                                                    let range = f32.max 1.0 (f32.i32 (tuple.2 - tuple.3))
+                                                                    let delta1 = f32.abs (f32.i32 tuple.3 - f32.i32 idx) / range
+                                                                    let delta2 = f32.abs (f32.i32 idx - f32.i32 tuple.2) / range
+                                                                    in
+                                                                    if delta1 > 0.1 then
+                                                                        argb.mix delta1 tuple.1 delta2 tuple.0
+                                                                    else
+                                                                        tuple.0
+
+                                                            ) v_line_filled_no_sky (0..<h)
+                               in map (\col -> if (col == 0) then c.sky_color else col) smoothed_v_line
+                            ) (transpose height_color_map)
     --finally tranpose rendered image from w*h to h*w
 
     --Work = O(width * height)
     --Span = O(1)
-    in transpose rendered_image
+    in match t
+    case #on ->
+                let height_color_map = map (\idx ->
+                                 let z = zs[idx]
+                                 let h_line = get_h_line z c w
+                                 let inv_z = (1.0 / z) * f32.i32 (w / 2)
+                                 in map (\i ->
+                                          let (x, y) = get_segment h_line i
+                                          --let x = loop x_copy = x while (x_copy > 1024.0 || x_copy < 0) do if x_copy > 1024 then (x_copy - 1024.0) else (x_copy + 1024.0)
+                                          --let y = loop y_copy = y while (y_copy > 1024.0 || y_copy < 0) do if y_copy > 1024 then (y_copy - 1024.0) else (y_copy + 1024.0)
+                                          let (interp_color, map_height) = (color_fun x y, height_fun x y)
+                                          let height_diff = c.height - map_height
+                                          let relative_height = height_diff * inv_z + c.horizon
+                                          let abs_height = i32.max 0 (i32.f32 relative_height)
+                                          in (interp_color, abs_height, idx)
+                                        ) (iota w)
+                                ) (iota zslen)
+
+                let rendered_image2 = map (\i -> 
+                               -- Iterates over depth-slice at width i and calculates array of (height, color) tuples.
+                               let (colors, heights, idxs) = unzip3 (scan (occlude2) (0, h, 0) i)
+                               -- Projects a column of height and color tuples to an h-length array.
+                               let complex_unfinished = map4 (\col next_col height next_height -> (col, next_col, height, next_height)) colors (rotate (-1) colors) heights (rotate (-1) heights)
+                               let complex = map3 (\tuple idx next_idx -> (tuple.0, tuple.1, tuple.2, tuple.3, idx, next_idx)) complex_unfinished idxs (rotate (-1) idxs)
+                               let v_line_complex = scatter (replicate h (0,0,0,0,1000,1000)) heights complex
+                               let v_line_filled_no_sky = scan (fill_vline3) (0,0,0,0,1000,1000) (v_line_complex)
+                               let smoothed_v_line = map2 (\tuple idx ->
+                                                                    let range = f32.max 1.0 (f32.i32 (tuple.3 - tuple.2))
+                                                                    let delta1 = f32.abs (f32.i32 idx - f32.i32 tuple.3) / range
+                                                                    let delta2 = f32.abs (f32.i32 tuple.2 - f32.i32 idx) / range
+                                                                    in
+                                                                        if tuple.4 - tuple.5 == 1  then
+                                                                        argb.mix delta2 tuple.1 delta1 tuple.0
+                                                                        else tuple.0
+
+                                                            ) v_line_filled_no_sky (0..<h)
+                               in map (\col -> if (col == 0) then c.sky_color else col) smoothed_v_line
+                            ) (transpose height_color_map)
+                in transpose rendered_image2
+    case #off -> 
+                let height_color_map = map (\z -> 
+                                 let h_line = get_h_line z c w
+                                 let inv_z = (1.0 / z) * f32.i32 (w / 2)
+                                 in map (\i ->
+                                          let (x, y) = get_segment h_line i
+                                          --let x = loop x_copy = x while (x_copy > 1024.0 || x_copy < 0) do if x_copy > 1024 then (x_copy - 1024.0) else (x_copy + 1024.0)
+                                          --let y = loop y_copy = y while (y_copy > 1024.0 || y_copy < 0) do if y_copy > 1024 then (y_copy - 1024.0) else (y_copy + 1024.0)
+                                          let (interp_color, map_height) = (color_fun x y, height_fun x y)
+                                          let height_diff = c.height - map_height
+                                          let relative_height = height_diff * inv_z + c.horizon
+                                          let abs_height = i32.max 0 (i32.f32 relative_height)
+                                          in (interp_color, abs_height)
+                                        ) (iota w)
+                                    ) zs
+                let rendered_image = map (\i -> 
+                               -- Iterates over depth-slice at width i and calculates array of (height, color) tuples.
+                               let (colors, heights) = unzip (scan (occlude) (0, h) i)
+                               -- Projects a column of height and color tuples to an h-length array.
+                               --let complex = map4 (\col next_col height next_height -> (col, next_col, height, next_height)) colors (rotate (-1) colors) heights (rotate (-1) heights)
+                               --let v_line_complex = scatter (replicate h (0,0,0,0)) heights complex
+                               --let v_line_filled_no_sky = scan (fill_vline2) (0,0,0,0) (v_line_complex)
+                               --let smoothed_v_line = map2 (\tuple idx -> 
+                                --                                    let range = f32.i32 (tuple.2 - tuple.3)
+                                --                                    let delta1 = (f32.i32 tuple.2 - f32.i32 idx)
+                                --                                    let delta2 = (f32.i32 idx - f32.i32 tuple.3)
+                               --                                     in
+                               --                                     argb.mix delta2 tuple.0 delta1 tuple.1
+                               --                             ) v_line_filled_no_sky (0..<h)
+                               --in smoothed_v_line
+                               let v_line_incomplete = scatter (replicate h 0) heights colors
+                               -- fill color gaps in v_line_incomplete.
+                               let v_line_filled_no_sky = scan (fill_vline) 0 (v_line_incomplete)
+                               --Fill sky with sky color, as this is not covered by the previous operation.
+                               in map (\col -> if (col == 0) then c.sky_color else col) v_line_filled_no_sky
+                            ) (transpose height_color_map)
+                in transpose rendered_image
+    --in transpose rendered_image3
 
 let redstuff (height1: i32, dist1: i32) (height2: i32, dist2: i32) : (i32, i32)=
     if dist1 < dist2 then (height1, dist1) else (height2, dist2)

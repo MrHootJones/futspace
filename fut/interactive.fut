@@ -5,9 +5,11 @@ import "render_functions"
 module input_handler = import "interactive_input"
 
 type render_mode = #math | #png
+
 type sized_state [h][w] =   
     {   
         mode : render_mode,
+        smoothing_mode : smoothing,
         cam : camera,
         lsc : landscape[h][w],
         height : i32,
@@ -15,7 +17,8 @@ type sized_state [h][w] =
         inputs : input_handler.input_state,
         random: f32,
         sun_height: f32,
-        sun_ang : f32
+        sun_ang : f32,
+        sun : [3]f32
     }
     
 type~ state = sized_state [][]
@@ -41,14 +44,16 @@ let init (seed: u32): state =
     in
     {   
         mode = #png,
+        smoothing_mode = #off,
         cam = init_camera,
         lsc = init_landscape,
         height = 1024,
         width = 1024,
         inputs = input_handler.init,
         random = 1.0f32,
-        sun_height = 0.5,
-        sun_ang = 0.0
+        sun_height = 0.1,
+        sun_ang = 0.1,
+        sun = [0, 1.0/(f32.sqrt 1), 0]--unit vector pointing up
     }
 
 let resize (height: i32) (width: i32) (s: state) =
@@ -62,7 +67,7 @@ let wheel _ _ s = s
 let terrain_collision (s : state) : state =
     match s.mode
     case #math -> 
-        let terrain_height = wavy s.cam.x s.cam.y
+        let terrain_height = squares s.cam.x s.cam.y
         in
         s with cam.height =
             if s.cam.height <= terrain_height then 
@@ -115,22 +120,43 @@ let process_inputs (s: state) : state =
             else if s.inputs.j == 1 then s.sun_height - 0.005
             else s.sun_height)
         with sun_ang =
-            (if s.inputs.n == 1 then s.sun_ang + 0.05
-            else if s.inputs.m == 1 then s.sun_ang - 0.05
+            (if s.inputs.n == 1 then s.sun_ang + 0.005
+            else if s.inputs.m == 1 then s.sun_ang - 0.005
             else s.sun_ang)
         with lsc.shadowed_color =
-            (if s.inputs.u == 1 then generate_shadowmap2 s.lsc.color s.lsc.altitude s.sun_ang s.sun_height
-            else if s.inputs.j == 1 then generate_shadowmap2 s.lsc.color s.lsc.altitude s.sun_ang s.sun_height
-            else if s.inputs.n == 1 then generate_shadowmap2 s.lsc.color s.lsc.altitude s.sun_ang s.sun_height
-            else if s.inputs.m == 1 then generate_shadowmap2 s.lsc.color s.lsc.altitude s.sun_ang s.sun_height
+            (let shadowfun = generate_shadowmap_accumulated
+            in
+            if s.inputs.u == 1 then 
+                (let partial_png_height = png_height s.lsc.altitude
+                let partial_png_color = png_color s.lsc.color
+                in shadowfun partial_png_color partial_png_height (vec3_rotate #y s.sun_ang (vec3_rotate #z s.sun_height s.sun)))
+            else if s.inputs.j == 1 then 
+                (let partial_png_height = png_height s.lsc.altitude
+                let partial_png_color = png_color s.lsc.color
+                in shadowfun partial_png_color partial_png_height (vec3_rotate #y s.sun_ang (vec3_rotate #z s.sun_height s.sun)))
+            else if s.inputs.n == 1 then 
+                (let partial_png_height = png_height s.lsc.altitude
+                let partial_png_color = png_color s.lsc.color
+                in shadowfun partial_png_color partial_png_height (vec3_rotate #y s.sun_ang (vec3_rotate #z s.sun_height s.sun)))
+            else if s.inputs.m == 1 then 
+                (let partial_png_height = png_height s.lsc.altitude
+                let partial_png_color = png_color s.lsc.color
+                in shadowfun partial_png_color partial_png_height (vec3_rotate #y s.sun_ang (vec3_rotate #z s.sun_height s.sun)))
             else s.lsc.shadowed_color)
         with mode =
-            if s.inputs.1 == 1 then
+            (if s.inputs.1 == 1 then
                 match s.mode
                 case #png -> #math
                 case #math -> #png
             else
-                s.mode
+                s.mode)
+        with smoothing_mode =
+            (if s.inputs.2 == 1 then
+                match s.smoothing_mode
+                case #off -> #on
+                case #on -> #off
+            else
+                s.smoothing_mode)
 
 let step (s: state) : state =
     (process_inputs (s with random = s.random + 0.005
@@ -147,15 +173,17 @@ let event (e: event) (s: state) =
 let render (s: state) =
     match s.mode
     case #math ->
-        render s.cam function_coloring wavy s.height s.width
+        let shadow_partial = png_color (generate_shadowmap_accumulated function_coloring expo2 (vec3_rotate #y s.sun_ang (vec3_rotate #z s.sun_height s.sun)))
+        in
+        render s.cam shadow_partial expo2 s.height s.width s.smoothing_mode
     case #png ->
         let partial_png_height = png_height_filtered s.lsc.altitude
         let partial_png_color = png_color_filtered s.lsc.shadowed_color
-        let img = render s.cam partial_png_color partial_png_height s.height s.width
-        in img
+        let img = render s.cam partial_png_color partial_png_height s.height s.width s.smoothing_mode 
+        in img--s.lsc.shadowed_color
 
 let text_content (s: state) =
-    (s.cam.x, s.cam.y, s.cam.angle, s.cam.height, s.cam.horizon, s.cam.distance, s.sun_height, s.cam.fov)
+    (s.cam.x, s.cam.y, s.cam.angle, s.cam.height, s.cam.horizon, s.cam.distance, s.sun_height, s.sun_ang, s.cam.fov)
 
 let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.colour) (s: state) : state =
     let new_height_map = map (\row -> map (\elem -> elem & 0xFF) row ) height_map
@@ -163,6 +191,8 @@ let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.col
     in
     s  with lsc.color = new_color_map
         with lsc.altitude = new_height_map
-        with lsc.shadowed_color = generate_shadowmap2 new_color_map new_height_map s.sun_ang s.sun_height
+        with lsc.shadowed_color = (let partial_png_height = png_height new_height_map
+                                    let partial_png_color = png_color new_color_map
+                                    in generate_shadowmap_accumulated partial_png_color partial_png_height (vec3_rotate #y s.sun_ang (vec3_rotate #z s.sun_height s.sun)))
         with lsc.height = h
         with lsc.width = w

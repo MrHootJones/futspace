@@ -36,7 +36,7 @@ let wavy (x: f32) (y: f32) : f32 =
 
 --example of coloring function.
 let function_coloring (x: f32) (y: f32) : i32 =
-    if (i32.f32 x) % 2 == 0 || (i32.f32 y) % 2 == 0 then
+    if (i32.f32 x) % 64 == 0 || (i32.f32 y) % 64 == 0 then
             argb.black
         else
             argb.white
@@ -115,3 +115,4 @@ let png_color_filtered2 [h][w] (colors : [h][w]i32) (x : f32) (y : f32) : i32 =
     let y_color_interp =
         argb.mix (ceil_y - y) colors[(i32.f32 floor_y)%h,(i32.f32 x)%w] (y - floor_y) colors[(i32.f32 ceil_y)%h,(i32.f32 x)%w]
     in argb.mix 0.5 x_color_interp 0.5 y_color_interp
+
