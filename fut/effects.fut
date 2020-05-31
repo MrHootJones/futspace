@@ -30,15 +30,15 @@ let interpolate [h][w] (pd: i32) (rendered_image: [h][w]i32) : [h][w]i32 =
     let smoothed_image = 
         map (\y ->
             map (\x -> 
-                    let c = unsafe rendered_image[y, x]
-                    let u = unsafe rendered_image[(y-pd)%h, x]
-                    let d = unsafe rendered_image[(y+pd)%h, x]
-                    let l = unsafe rendered_image[y, (x-pd)%h]
-                    let r = unsafe rendered_image[y, (x+pd)%h]
-                    let ul = unsafe rendered_image[(y-pd)%h, (x-pd)%h]
-                    let ur = unsafe rendered_image[(y-pd)%h, (x+pd)%h]
-                    let dl = unsafe rendered_image[(y+pd)%h, (x-pd)%h]
-                    let dr = unsafe rendered_image[(y+pd)%h, (x+pd)%h]
+                    let c = #[unsafe] rendered_image[y, x]
+                    let u = #[unsafe] rendered_image[(y-pd)%h, x]
+                    let d = #[unsafe] rendered_image[(y+pd)%h, x]
+                    let l = #[unsafe] rendered_image[y, (x-pd)%h]
+                    let r = #[unsafe] rendered_image[y, (x+pd)%h]
+                    let ul = #[unsafe] rendered_image[(y-pd)%h, (x-pd)%h]
+                    let ur = #[unsafe] rendered_image[(y-pd)%h, (x+pd)%h]
+                    let dl = #[unsafe] rendered_image[(y+pd)%h, (x-pd)%h]
+                    let dr = #[unsafe] rendered_image[(y+pd)%h, (x+pd)%h]
                     in argb.mix m1 c m2 (argb.mix m1 u m1 (argb.mix m1 d m1 (argb.mix m1 r m1 (argb.mix m1 l m1 (argb.mix m1 ul m1 (argb.mix m1 ur m1 (argb.mix m1 dl m1 dr)))))))
                     ) (0..<w)
                         ) (0..<h)
@@ -74,7 +74,7 @@ let generate_shadowmap [h][w] (height_map: [h][w]i32) (sun_dy: f32) : [h][w]f32 
 
 --generates a colormap with shadows from a pair of color and height maps.
 let generate_shadowmap2 [h][w] (color_map : [h][w]i32) (height_map : [h][w]i32) (ang : f32) (sun_dy : f32) : [h][w]i32 =
-    unsafe
+    #[unsafe]
     let intensities = 
         map (\y -> 
             map (\x ->

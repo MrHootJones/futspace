@@ -98,8 +98,8 @@ let fill_vline3 (color1 : (i32,i32,i32,i32,i32,i32)) (color2 : (i32,i32,i32,i32,
 --Work = O(width * height)
 -- [r] is size annotation denoting height of color and altitude in landscape record. [s] likewise denotes the width of these. 
 -- h (screen height) and w (screen width) are variables which double as size annotations denoting size of final output map/screen buffer.
-let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 -> f32) (h : i32) (w: i32) (t : smoothing) : [][]i32 =
-    unsafe
+let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 -> f32) (h : i32) (w: i32) (t : smoothing): [][]i32 =
+    #[unsafe]
     let z_0 = 0.0
     let d = 0.001
 
@@ -254,7 +254,7 @@ let redstuff (height1: i32, dist1: i32) (height2: i32, dist2: i32) : (i32, i32)=
 
 --very slow 'path tracing' algorithm. calculate intersections of rays from camera to terrain iteratively
 let render2 [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][w]i32 =
-    unsafe
+    #[unsafe]
     let heightmap = lsc.altitude
     let colormap = lsc.color
     let render_map (x : f32) (y : f32) : (i32, f32) =
