@@ -80,7 +80,7 @@ let get_segment_point (l : line) (j : i32) : (i32, i32) =
 
 let render [q][r] (cam: camera) (lsc : landscape [q][r]) 
                   (l : i32) (m: i32) : [l][m]i32 =
-  unsafe
+  #[unsafe]
   let z_0 = 1.0
   let delta = 0.005
   let zs = get_zs delta cam.distance z_0
