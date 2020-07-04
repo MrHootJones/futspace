@@ -28,5 +28,5 @@ entry text_content (s: state) =
 entry step (td: f32) (s: state): state =
   core.event (#step td) s
 
-entry update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.colour) (s: state) : state =
+entry update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]i32) (s: state) : state =
   core.update_map color_map height_map s
