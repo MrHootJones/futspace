@@ -160,7 +160,7 @@ let process_inputs (s: state) : state =
 
 let step (s: state) : state =
     (process_inputs (s with random = s.random + 0.005
-                        with cam.sky_color = argb.scale 0xFF9090e0 s.sun_height)) 
+                       with cam.sky_color = argb.scale 0xFF9090e0 s.sun_height)) 
     |> terrain_collision
 
 let event (e: event) (s: state) =
@@ -185,14 +185,14 @@ let render (s: state) =
 let text_content (s: state) =
     (s.cam.x, s.cam.y, s.cam.angle, s.cam.height, s.cam.horizon, s.cam.distance, s.sun_height, s.sun_ang, s.cam.fov)
 
-let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]argb.colour) (s: state) : state =
+let update_map [h][w] (color_map: [h][w]argb.colour) (height_map: [h][w]i32) (s: state) : state =
     let new_height_map = map (\row -> map (\elem -> elem & 0xFF) row ) height_map
     let new_color_map = color_map
     in
     s  with lsc.color = new_color_map
-        with lsc.altitude = new_height_map
-        with lsc.shadowed_color = (let partial_png_height = png_height new_height_map
-                                    let partial_png_color = png_color new_color_map
-                                    in generate_shadowmap_accumulated partial_png_color partial_png_height (vec3_rotate #y s.sun_ang (vec3_rotate #z s.sun_height s.sun)))
-        with lsc.height = h
-        with lsc.width = w
+       with lsc.altitude = new_height_map
+       with lsc.shadowed_color = (let partial_png_height = png_height new_height_map
+                                  let partial_png_color = png_color new_color_map
+                                  in generate_shadowmap_accumulated partial_png_color partial_png_height (vec3_rotate #y s.sun_ang (vec3_rotate #z s.sun_height s.sun)))
+       with lsc.height = h
+       with lsc.width = w

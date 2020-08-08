@@ -9,13 +9,13 @@ type camera = { x : f32,
                 horizon : f32, 
                 distance : f32,
                 fov : f32,
-                sky_color : i32}
+                sky_color : argb.colour}
 
 type landscape [h][w] = { width : i32,
                        height : i32,
                        altitude : [h][w]i32,
-                       color : [h][w]i32,
-                       shadowed_color : [h][w]i32}
+                       color : [h][w]argb.colour,
+                       shadowed_color : [h][w]argb.colour}
 
 --this record definition is simply for convenience, i.e. to encapsulate the data returned by get_h_line function below. 
 --The data encapsulated is simply the startpoint of the given horizontal line and the size of its segments. we do not need any more for our purposes
@@ -66,7 +66,7 @@ let get_segment (l : line) (i : i32) : (f32, f32) =
     in (left_x_int, left_y_int)
 
 --scan operator used to sort through depth-slices in order to determine voxel-column colors and heights.
-let occlude (color1 : i32, height1 : i32 ) (color2 : i32, height2 : i32 ) : (i32, i32) =
+let occlude (color1 : argb.colour, height1 : i32 ) (color2 : argb.colour, height2 : i32 ) : (argb.colour, i32) =
     if (height1 <= height2)
     then (color1, height1)
     else (color2, height2)
@@ -75,22 +75,22 @@ let filter_pred (color: i32, index: i32) : bool =
     if color == 0 then false else true
 
 --used in conjunction with scan at line 94 (let v_line_filled_no_sky) to fill color gaps in pixel-columns.
-let fill_vline (color1 : i32) (color2 : i32) : i32 =
+let fill_vline (color1 : argb.colour) (color2 : argb.colour) : argb.colour =
     if (color2 == 0)
     then color1
     else color2
 
-let fill_vline2 (color1 : (i32,i32,i32,i32)) (color2 : (i32,i32,i32,i32)) : (i32,i32,i32,i32) =
+let fill_vline2 (color1 : (argb.colour,argb.colour,i32,i32)) (color2 : (argb.colour,argb.colour,i32,i32)) : (argb.colour,argb.colour,i32,i32) =
     if (color2 == (0,0,0,0))
     then color1
     else color2
 
-let occlude2 (color1 : i32, height1 : i32, idx1 : i32 ) (color2 : i32, height2 : i32, idx2 : i32 ) : (i32, i32, i32) =
+let occlude2 (color1 : argb.colour, height1 : i32, idx1 : i32 ) (color2 : argb.colour, height2 : i32, idx2 : i32 ) : (argb.colour, i32, i32) =
     if (height1 <= height2)
     then (color1, height1, idx1)
     else (color2, height2, idx2)
 
-let fill_vline3 (color1 : (i32,i32,i32,i32,i32,i32)) (color2 : (i32,i32,i32,i32,i32,i32)) : (i32,i32,i32,i32,i32,i32) =
+let fill_vline3 (color1 : (argb.colour,argb.colour,i32,i32,i32,i32)) (color2 : (argb.colour,argb.colour,i32,i32,i32,i32)) =
     if (color2 == (0,0,0,0,1000,1000))
     then color1
     else color2
@@ -98,7 +98,7 @@ let fill_vline3 (color1 : (i32,i32,i32,i32,i32,i32)) (color2 : (i32,i32,i32,i32,
 --Work = O(width * height)
 -- [r] is size annotation denoting height of color and altitude in landscape record. [s] likewise denotes the width of these. 
 -- h (screen height) and w (screen width) are variables which double as size annotations denoting size of final output map/screen buffer.
-let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 -> f32) (h : i32) (w: i32) (t : smoothing): [][]i32 =
+let render (c: camera) (color_fun : f32 -> f32 -> argb.colour) (height_fun : f32 -> f32 -> f32) (h : i32) (w: i32) (t : smoothing): [][]argb.colour =
     #[unsafe]
     let z_0 = 0.0
     let d = 0.001
@@ -160,9 +160,9 @@ let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 
                                                                     let delta2 = f32.abs (f32.i32 idx - f32.i32 tuple.2) / range
                                                                     in
                                                                     if delta1 > 0.1 then
-                                                                        argb.mix delta1 tuple.1 delta2 tuple.0
-                                                                    else
-                                                                        tuple.0
+                                                                      argb.mix delta1 tuple.1
+                                                                               delta2 tuple.0
+                                                                    else tuple.0
 
                                                             ) v_line_filled_no_sky (0..<h)
                                in map (\col -> if (col == 0) then c.sky_color else col) smoothed_v_line
@@ -203,7 +203,8 @@ let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 
                                                                     let delta2 = f32.abs (f32.i32 tuple.2 - f32.i32 idx) / range
                                                                     in
                                                                         if tuple.4 - tuple.5 == 1  then
-                                                                        argb.mix delta2 tuple.1 delta1 tuple.0
+                                                                          argb.mix delta2 tuple.1
+                                                                                   delta1 tuple.0
                                                                         else tuple.0
 
                                                             ) v_line_filled_no_sky (0..<h)
@@ -244,20 +245,21 @@ let render (c: camera) (color_fun : f32 -> f32 -> i32) (height_fun : f32 -> f32 
                                -- fill color gaps in v_line_incomplete.
                                let v_line_filled_no_sky = scan (fill_vline) 0 (v_line_incomplete)
                                --Fill sky with sky color, as this is not covered by the previous operation.
-                               in map (\col -> if (col == 0) then c.sky_color else col) v_line_filled_no_sky
+                               in map (\col -> if (col == 0) then c.sky_color else col)
+                                      v_line_filled_no_sky
                             ) (transpose height_color_map)
                 in transpose rendered_image
     --in transpose rendered_image3
 
-let redstuff (height1: i32, dist1: i32) (height2: i32, dist2: i32) : (i32, i32)=
+let redstuff (height1: argb.colour, dist1: i32) (height2: argb.colour, dist2: i32) : (argb.colour, i32)=
     if dist1 < dist2 then (height1, dist1) else (height2, dist2)
 
 --very slow 'path tracing' algorithm. calculate intersections of rays from camera to terrain iteratively
-let render2 [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][w]i32 =
+let render2 [r][s] (c: camera) (lsc : landscape [r][s]) (h : i32) (w: i32) : [h][w]argb.colour =
     #[unsafe]
     let heightmap = lsc.altitude
     let colormap = lsc.color
-    let render_map (x : f32) (y : f32) : (i32, f32) =
+    let render_map (x : f32) (y : f32) : (argb.colour, f32) =
         --let color = lsc.color[(i32.f32 y)%1024, (i32.f32 x)%1024]
         --let height = f32.i32 lsc.altitude[(i32.f32 y)%1024, (i32.f32 x)%1024]
         let floor_x = f32.floor x

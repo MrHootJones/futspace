@@ -35,7 +35,7 @@ let wavy (x: f32) (y: f32) : f32 =
     output
 
 --example of coloring function.
-let function_coloring (x: f32) (y: f32) : i32 =
+let function_coloring (x: f32) (y: f32) : argb.colour =
     if (i32.f32 x) % 64 == 0 || (i32.f32 y) % 64 == 0 then
             argb.black
         else
@@ -88,11 +88,11 @@ let png_height_filtered2 [h][w] (heights : [h][w]i32) (x : f32) (y : f32) : f32 
                 (y - floor_y)*(f32.i32 heights[(i32.f32 ceil_y)%h,(i32.f32 x)%w]))
     in ((x_interpolated + y_interpolated) / 2.0)
 
-let png_color [h][w] (colors : [h][w]i32) (x : f32) (y : f32) : i32 =
+let png_color [h][w] (colors : [h][w]argb.colour) (x : f32) (y : f32) : argb.colour =
     colors[(i32.f32 y)%h,(i32.f32 x)%w]
 
 --bilinearly filtered color from png colormap      
-let png_color_filtered [h][w] (colors : [h][w]i32) (x : f32) (y : f32) : i32 =
+let png_color_filtered [h][w] (colors : [h][w]argb.colour) (x : f32) (y : f32) : argb.colour =
         let floor_x = f32.floor x
         let ceil_x = f32.ceil x
         let floor_y = f32.floor y
@@ -105,7 +105,7 @@ let png_color_filtered [h][w] (colors : [h][w]i32) (x : f32) (y : f32) : i32 =
         color
 
 --companion to png_height_filtered2. stays for same reason
-let png_color_filtered2 [h][w] (colors : [h][w]i32) (x : f32) (y : f32) : i32 =
+let png_color_filtered2 [h][w] (colors : [h][w]argb.colour) (x : f32) (y : f32) : argb.colour =
     let floor_x = f32.floor x
     let ceil_x = f32.ceil x
     let floor_y = f32.floor y

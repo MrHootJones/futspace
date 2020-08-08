@@ -41,18 +41,18 @@ void load_map(struct lys_context *ctx){
 
   FreeImage_Initialise(false);
 
-  int32_t* colormap_data = freeimage_load(colormap_path, colormap, (unsigned int*) &width, (unsigned int*) &height);
+  uint32_t* colormap_data = (uint32_t*) freeimage_load(colormap_path, colormap, (unsigned int*) &width, (unsigned int*) &height);
   int32_t* heightmap_data = freeimage_load(heightmap_path, heightmap, (unsigned int*) &width, (unsigned int*) &height);
   assert(colormap_data != NULL);
   assert(fclose(colormap) != EOF);
   assert(heightmap_data != NULL);
   assert(fclose(heightmap) != EOF);
-  struct futhark_i32_2d *colormap_fut = futhark_new_i32_2d(ctx->fut, colormap_data, height, width);
+  struct futhark_u32_2d *colormap_fut = futhark_new_u32_2d(ctx->fut, colormap_data, height, width);
   struct futhark_i32_2d *heightmap_fut = futhark_new_i32_2d(ctx->fut, heightmap_data, height, width);
   free(colormap_data);
   free(heightmap_data);
   futhark_entry_update_map(ctx->fut, &(ctx->state), colormap_fut, heightmap_fut, ctx->state);
-  futhark_free_i32_2d(ctx->fut, colormap_fut);
+  futhark_free_u32_2d(ctx->fut, colormap_fut);
   futhark_free_i32_2d(ctx->fut, heightmap_fut);
 }
 
@@ -86,7 +86,7 @@ void handle_event(struct lys_context *ctx, enum lys_event event) {
 }
 
 /* Responsible for initializing lys */
-int32_t* run_interactive(struct futhark_context *futctx,
+uint32_t* run_interactive(struct futhark_context *futctx,
                          int width, int height, int seed,
                          bool show_text_initial) {
   struct lys_context ctx;

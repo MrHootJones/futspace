@@ -1,5 +1,5 @@
 require {
-  github.com/diku-dk/lys 0.1.8 #bc6079ec1570407eb1bb64d866ccd407a87a1d3c
-  github.com/athas/matte 0.1.1 #24f332e6ff8b5872b950cfcbead9b2f7c6571490
-  github.com/diku-dk/linalg 0.2.6 #79c6a67b4cba41642a4289abd3a44e426ba0e450
+  github.com/diku-dk/lys 0.1.9 #b12ac4a80d7af42cf0ffe2203b945cd1b7b794c4
+  github.com/athas/matte 0.1.2 #2ce1a39b29c329504cb2d849e305cbcc17f701d5
+  github.com/diku-dk/linalg 0.2.7 #3075bac1259ed4398273d7e6e5628725f9137b7b
 }
